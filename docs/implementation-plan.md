@@ -2,7 +2,7 @@
 
 Implementation plan for `cognitiotechny/contabil`: an **agnostic**, headless, double-entry accounting package that can be installed in any CodeIgniter 4 application. It follows `.agents/specs.md`; where an earlier draft diverged from it, the specs win.
 
-> Status: **planning only. No code is written until the open decisions (section 9) are closed.**
+> Status: **planning only.** All decisions in section 9 are closed. Tracked in issues #1 (epic) and #2–#6 (phases).
 
 ## 1. Goals and principles
 
@@ -218,12 +218,12 @@ The module is a bookkeeping tool, not an accounting opinion. Charts of accounts 
 - [x] Language: English.
 - [x] Cash and accrual basis both available, chosen by the user (section 5.2).
 - [x] Tests: PHPUnit bundled with CodeIgniter.
-- [ ] **Balance Sheet under cash basis:** unsupported (accrual only) or supported through a simplified presentation. Recommendation: accrual only in v1.
-- [ ] **Partial settlements:** confirm the proportional recognition rule in 5.2 for entries with several revenue/expense lines.
-- [ ] **Gap-free numbering:** counter row with locking vs sequence table.
-- [ ] **License:** MIT, per the repository.
-- [ ] **Seeds:** keep optional charts in the package or in a separate repository.
-- [ ] **Static analysis:** add PHPStan or rely on the CodeIgniter coding standard only.
+- [x] **Balance Sheet under cash basis:** accrual only in v1.
+- [x] **Partial settlements:** proportional recognition (settled ÷ original, rounded in cents, residual on the final settlement).
+- [x] **Gap-free numbering:** counter row locked inside the posting transaction (`SELECT ... FOR UPDATE` on MySQL; immediate write transaction on SQLite).
+- [x] **License:** MIT.
+- [x] **Seeds:** optional charts shipped in the package (`resources/charts/`).
+- [x] **Static analysis:** CodeIgniter coding standard only in v1; PHPStan can be proposed later.
 
 ## 10. Suggested backlog (issues to create in this repository)
 
