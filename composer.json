@@ -1,0 +1,43 @@
+{
+    "name": "cognitiotechny/contabil",
+    "description": "Agnostic, headless, double-entry accounting package for CodeIgniter 4 applications.",
+    "license": "MIT",
+    "type": "library",
+    "keywords": [
+        "accounting",
+        "double-entry",
+        "ledger",
+        "codeigniter4"
+    ],
+    "require": {
+        "php": "^8.2",
+        "psr/event-dispatcher": "^1.0"
+    },
+    "require-dev": {
+        "codeigniter4/framework": "^4.7",
+        "phpunit/phpunit": "^10.5 || ^11.0"
+    },
+    "suggest": {
+        "codeigniter4/framework": "Required to use the CodeIgniter infrastructure layer (migrations, commands, API)."
+    },
+    "autoload": {
+        "psr-4": {
+            "CognitioTechny\\Contabil\\": "src/",
+            "CognitioTechny\\Contabil\\Infrastructure\\CodeIgniter\\": "src/Infrastructure/CodeIgniter/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\Support\\": "tests/_support/",
+            "CognitioTechny\\Contabil\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
