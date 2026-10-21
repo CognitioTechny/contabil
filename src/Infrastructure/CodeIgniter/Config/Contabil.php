@@ -54,6 +54,13 @@ class Contabil extends BaseConfig
      */
     public ?string $dbGroup = null;
 
+    /**
+     * Format of account codes, one segment per level of the chart, for example
+     * `9.9.99.999` (`9` digit, `A` letter, `X` letter or digit). Null accepts
+     * any code at any depth.
+     */
+    public ?string $accountCodeMask = null;
+
     public function settings(): Settings
     {
         return new Settings(
@@ -65,6 +72,7 @@ class Contabil extends BaseConfig
             $this->commandsEnabled,
             $this->defaultBasis,
             $this->dbGroup,
+            $this->accountCodeMask,
         );
     }
 }

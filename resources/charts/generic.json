@@ -1,0 +1,318 @@
+{
+  "model": "generic",
+  "description": "Generic five-class chart for any entity.",
+  "notice": "Starting point only, not a national or official chart. An accountant must review it before it is treated as official.",
+  "accounts": [
+    {
+      "code": "1",
+      "name": "Assets",
+      "type": "ASSET",
+      "parent_code": null
+    },
+    {
+      "code": "1.1",
+      "name": "Current assets",
+      "type": null,
+      "parent_code": "1"
+    },
+    {
+      "code": "1.1.01",
+      "name": "Cash on hand",
+      "type": null,
+      "parent_code": "1.1",
+      "is_cash_account": true
+    },
+    {
+      "code": "1.1.02",
+      "name": "Bank accounts",
+      "type": null,
+      "parent_code": "1.1",
+      "is_cash_account": true
+    },
+    {
+      "code": "1.1.03",
+      "name": "Accounts receivable",
+      "type": null,
+      "parent_code": "1.1"
+    },
+    {
+      "code": "1.1.04",
+      "name": "Inventory",
+      "type": null,
+      "parent_code": "1.1"
+    },
+    {
+      "code": "1.1.05",
+      "name": "Prepaid expenses",
+      "type": null,
+      "parent_code": "1.1"
+    },
+    {
+      "code": "1.2",
+      "name": "Non-current assets",
+      "type": null,
+      "parent_code": "1"
+    },
+    {
+      "code": "1.2.01",
+      "name": "Property and equipment",
+      "type": null,
+      "parent_code": "1.2"
+    },
+    {
+      "code": "1.2.02",
+      "name": "Accumulated depreciation",
+      "type": null,
+      "parent_code": "1.2",
+      "contra": true
+    },
+    {
+      "code": "1.2.03",
+      "name": "Intangible assets",
+      "type": null,
+      "parent_code": "1.2"
+    },
+    {
+      "code": "2",
+      "name": "Liabilities",
+      "type": "LIABILITY",
+      "parent_code": null
+    },
+    {
+      "code": "2.1",
+      "name": "Current liabilities",
+      "type": null,
+      "parent_code": "2"
+    },
+    {
+      "code": "2.1.01",
+      "name": "Accounts payable",
+      "type": null,
+      "parent_code": "2.1"
+    },
+    {
+      "code": "2.1.02",
+      "name": "Salaries and benefits payable",
+      "type": null,
+      "parent_code": "2.1"
+    },
+    {
+      "code": "2.1.03",
+      "name": "Taxes payable",
+      "type": null,
+      "parent_code": "2.1"
+    },
+    {
+      "code": "2.1.04",
+      "name": "Short-term loans",
+      "type": null,
+      "parent_code": "2.1"
+    },
+    {
+      "code": "2.1.05",
+      "name": "Deferred revenue",
+      "type": null,
+      "parent_code": "2.1"
+    },
+    {
+      "code": "2.2",
+      "name": "Non-current liabilities",
+      "type": null,
+      "parent_code": "2"
+    },
+    {
+      "code": "2.2.01",
+      "name": "Long-term loans",
+      "type": null,
+      "parent_code": "2.2"
+    },
+    {
+      "code": "3",
+      "name": "Equity",
+      "type": "EQUITY",
+      "parent_code": null
+    },
+    {
+      "code": "3.1",
+      "name": "Capital",
+      "type": null,
+      "parent_code": "3"
+    },
+    {
+      "code": "3.1.01",
+      "name": "Paid-in capital",
+      "type": null,
+      "parent_code": "3.1"
+    },
+    {
+      "code": "3.2",
+      "name": "Retained earnings",
+      "type": null,
+      "parent_code": "3"
+    },
+    {
+      "code": "3.2.01",
+      "name": "Retained earnings",
+      "type": null,
+      "parent_code": "3.2"
+    },
+    {
+      "code": "3.2.02",
+      "name": "Current-year result",
+      "type": null,
+      "parent_code": "3.2"
+    },
+    {
+      "code": "3.2.03",
+      "name": "Distributions to owners",
+      "type": null,
+      "parent_code": "3.2",
+      "contra": true
+    },
+    {
+      "code": "4",
+      "name": "Revenue",
+      "type": "REVENUE",
+      "parent_code": null
+    },
+    {
+      "code": "4.1",
+      "name": "Operating revenue",
+      "type": null,
+      "parent_code": "4"
+    },
+    {
+      "code": "4.1.01",
+      "name": "Sales of goods",
+      "type": null,
+      "parent_code": "4.1"
+    },
+    {
+      "code": "4.1.02",
+      "name": "Service revenue",
+      "type": null,
+      "parent_code": "4.1"
+    },
+    {
+      "code": "4.1.03",
+      "name": "Returns and discounts",
+      "type": null,
+      "parent_code": "4.1",
+      "contra": true
+    },
+    {
+      "code": "4.2",
+      "name": "Other revenue",
+      "type": null,
+      "parent_code": "4"
+    },
+    {
+      "code": "4.2.01",
+      "name": "Interest income",
+      "type": null,
+      "parent_code": "4.2"
+    },
+    {
+      "code": "4.2.02",
+      "name": "Other income",
+      "type": null,
+      "parent_code": "4.2"
+    },
+    {
+      "code": "5",
+      "name": "Expenses",
+      "type": "EXPENSE",
+      "parent_code": null
+    },
+    {
+      "code": "5.1",
+      "name": "Cost of sales",
+      "type": null,
+      "parent_code": "5"
+    },
+    {
+      "code": "5.1.01",
+      "name": "Cost of goods sold",
+      "type": null,
+      "parent_code": "5.1"
+    },
+    {
+      "code": "5.1.02",
+      "name": "Cost of services",
+      "type": null,
+      "parent_code": "5.1"
+    },
+    {
+      "code": "5.2",
+      "name": "Operating expenses",
+      "type": null,
+      "parent_code": "5"
+    },
+    {
+      "code": "5.2.01",
+      "name": "Salaries and benefits",
+      "type": null,
+      "parent_code": "5.2"
+    },
+    {
+      "code": "5.2.02",
+      "name": "Rent",
+      "type": null,
+      "parent_code": "5.2"
+    },
+    {
+      "code": "5.2.03",
+      "name": "Utilities",
+      "type": null,
+      "parent_code": "5.2"
+    },
+    {
+      "code": "5.2.04",
+      "name": "Professional fees",
+      "type": null,
+      "parent_code": "5.2"
+    },
+    {
+      "code": "5.2.05",
+      "name": "Marketing",
+      "type": null,
+      "parent_code": "5.2"
+    },
+    {
+      "code": "5.2.06",
+      "name": "Office supplies",
+      "type": null,
+      "parent_code": "5.2"
+    },
+    {
+      "code": "5.2.07",
+      "name": "Depreciation expense",
+      "type": null,
+      "parent_code": "5.2"
+    },
+    {
+      "code": "5.2.08",
+      "name": "Bank fees",
+      "type": null,
+      "parent_code": "5.2"
+    },
+    {
+      "code": "5.3",
+      "name": "Financial and other expenses",
+      "type": null,
+      "parent_code": "5"
+    },
+    {
+      "code": "5.3.01",
+      "name": "Interest expense",
+      "type": null,
+      "parent_code": "5.3"
+    },
+    {
+      "code": "5.3.02",
+      "name": "Other expenses",
+      "type": null,
+      "parent_code": "5.3"
+    }
+  ]
+}

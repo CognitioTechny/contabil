@@ -77,6 +77,19 @@ public function delete(string $path): void;     // missing file is not an error
 
 Paths are relative, use `/` and never start with `/`.
 
+## Registering adapters
+
+The package reaches its ports through CodeIgniter services: `contabilAuthorizer`, `contabilCurrentUser`, `contabilCurrentEntity`, `contabilClock` and `contabilEventDispatcher`. The host plugs in its adapter by defining the method of the same name in its own `app/Config/Services.php`, which takes precedence over the package:
+
+```php
+public static function contabilAuthorizer(bool $getShared = true): AuthorizerInterface
+{
+    return $getShared ? static::getSharedInstance('contabilAuthorizer') : new HostAuthorizer(service('auth'));
+}
+```
+
+The service defaults are the ones in the table above, except the authorizer: the HTTP layer uses `DenyAllAuthorizer`, so the API stays closed until the host registers its own. The `contabil:*` commands never consult the authorizer.
+
 ## Writing an adapter
 
 ```php

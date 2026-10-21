@@ -35,6 +35,27 @@ abstract class ContabilCommand extends BaseCommand
         return config(Contabil::class)->dbGroup ?? config(Database::class)->defaultGroup;
     }
 
+    /**
+     * Value of a `--name value` or `--name=value` option, null when absent.
+     * Spark passes the options in `$params`, keyed by option name.
+     *
+     * @param array<int|string, mixed> $params
+     */
+    protected function option(array $params, string $name): ?string
+    {
+        if (is_string($params[$name] ?? null)) {
+            return $params[$name];
+        }
+
+        foreach (array_keys($params) as $key) {
+            if (is_string($key) && str_starts_with($key, $name . '=')) {
+                return substr($key, strlen($name) + 1);
+            }
+        }
+
+        return null;
+    }
+
     protected function commandsEnabled(): bool
     {
         return config(Contabil::class)->commandsEnabled;

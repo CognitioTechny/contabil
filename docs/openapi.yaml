@@ -1,0 +1,442 @@
+openapi: 3.0.3
+info:
+  title: Contabil API (chart of accounts and fiscal calendar)
+  version: 0.2.0
+  description: |
+    Phase 2 of the Contabil accounting package. Every route works on the current
+    entity given by `CurrentEntityInterface`; `entity_id` is read from the query
+    string only when that port returns null. Permissions are checked through
+    `AuthorizerInterface` with the entity id. Until the host registers an
+    authorizer, every route answers 403.
+servers:
+  - url: /contabil
+    description: Default `apiRoute`
+paths:
+  /accounts:
+    get:
+      summary: List accounts, ordered by code
+      description: "Permission: contabil.chart.view"
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - $ref: '#/components/parameters/IncludeInactive'
+      responses:
+        '200': { $ref: '#/components/responses/AccountList' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Create an account
+      description: "Permission: contabil.chart.edit. A leaf parent becomes a group when it has no movement."
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountInput' }
+      responses:
+        '201': { $ref: '#/components/responses/Account' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /accounts/tree:
+    get:
+      summary: The chart as a nested tree
+      description: "Permission: contabil.chart.view"
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - $ref: '#/components/parameters/IncludeInactive'
+      responses:
+        '200':
+          description: Root accounts with their children.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/AccountNode' }
+        '403': { $ref: '#/components/responses/Error' }
+  /accounts/export:
+    get:
+      summary: Export the chart (parents before children)
+      description: "Permission: contabil.chart.view. The layout is the one /accounts/import reads."
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - name: format
+          in: query
+          schema: { type: string, enum: [csv, json], default: csv }
+      responses:
+        '200':
+          description: The chart as a file.
+          content:
+            text/csv: { schema: { type: string } }
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accounts:
+                    type: array
+                    items: { $ref: '#/components/schemas/ImportRow' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /accounts/import:
+    post:
+      summary: Import a chart, all or nothing
+      description: |
+        Permission: contabil.chart.edit. The body is JSON (a list of rows or
+        `{"accounts": [...]}`) or CSV with a header row (`?format=csv` or a
+        `text/csv` content type). A multipart `file` upload is also accepted.
+        One bad row rejects the whole import; the response lists every error.
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - name: format
+          in: query
+          schema: { type: string, enum: [csv, json] }
+        - name: skip_existing
+          in: query
+          description: Leave accounts whose code already exists as they are instead of rejecting them.
+          schema: { type: boolean, default: false }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accounts:
+                  type: array
+                  items: { $ref: '#/components/schemas/ImportRow' }
+          text/csv:
+            schema: { type: string }
+      responses:
+        '200':
+          description: Import result.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      created: { type: integer }
+                      skipped: { type: integer }
+        '403': { $ref: '#/components/responses/Error' }
+        '422':
+          description: One or more rows were rejected; nothing was imported.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportError' }
+  /accounts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - $ref: '#/components/parameters/EntityId'
+    get:
+      summary: Get an account
+      description: "Permission: contabil.chart.view"
+      responses:
+        '200': { $ref: '#/components/responses/Account' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Update an account (partial; PATCH is the same)
+      description: |
+        Permission: contabil.chart.edit. Changing the type or nature of an account
+        with movement, or turning it into a group, answers 409.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Account' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    patch:
+      summary: Update an account (partial)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AccountInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Account' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Delete an account with no children and no movement
+      description: "Permission: contabil.chart.edit"
+      responses:
+        '204': { description: Deleted. }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /accounts/{id}/move:
+    post:
+      summary: Move an account, with its subtree, under another parent
+      description: "Permission: contabil.chart.edit. `parent_id: null` moves it to the root."
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parent_id]
+              properties:
+                parent_id: { type: integer, nullable: true }
+                code:
+                  type: string
+                  description: New code for the moved account, to fit the code mask at its new level.
+      responses:
+        '200': { $ref: '#/components/responses/Account' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /accounts/{id}/deactivate:
+    post:
+      summary: Deactivate an account (children first)
+      description: "Permission: contabil.chart.edit"
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200': { $ref: '#/components/responses/Account' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /accounts/{id}/reactivate:
+    post:
+      summary: Reactivate an account (its parent must be active)
+      description: "Permission: contabil.chart.edit"
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200': { $ref: '#/components/responses/Account' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /fiscal-years:
+    get:
+      summary: List fiscal years, ordered by start date
+      description: "Permission: contabil.chart.view"
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200':
+          description: Fiscal years.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/FiscalYear' }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Create a fiscal year with its 12 monthly periods
+      description: |
+        Permission: contabil.period.manage. The start date must be the first day
+        of a month. A year that overlaps another of the entity, or reuses its
+        label, answers 409.
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [start_date]
+              properties:
+                start_date: { type: string, format: date, example: '2026-01-01' }
+                label:
+                  type: string
+                  maxLength: 50
+                  description: Defaults to `2026`, or `2026/2027` when the year does not start in January.
+      responses:
+        '201':
+          description: The year and its periods.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/FiscalYear'
+                      - type: object
+                        properties:
+                          periods:
+                            type: array
+                            items: { $ref: '#/components/schemas/Period' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /fiscal-years/{id}/periods:
+    get:
+      summary: List the periods of a fiscal year
+      description: "Permission: contabil.chart.view"
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200':
+          description: Periods, ordered by start date.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Period' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    EntityId:
+      name: entity_id
+      in: query
+      required: false
+      description: Used only when the host's current-entity port returns null.
+      schema: { type: integer }
+    IncludeInactive:
+      name: include_inactive
+      in: query
+      schema: { type: boolean, default: false }
+  responses:
+    Account:
+      description: An account.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/Account' }
+    AccountList:
+      description: Accounts ordered by code.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data:
+                type: array
+                items: { $ref: '#/components/schemas/Account' }
+    Error:
+      description: |
+        A domain error: 403 AccessDeniedException, 404 NotFoundException,
+        409 ConflictException, 422 ValidationException.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Account:
+      type: object
+      properties:
+        id: { type: integer }
+        entity_id: { type: integer }
+        code: { type: string }
+        name: { type: string }
+        type: { type: string, enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE] }
+        nature: { type: string, enum: [DEBIT, CREDIT] }
+        contra: { type: boolean }
+        level: { type: integer, minimum: 1 }
+        parent_id: { type: integer, nullable: true }
+        accepts_entries: { type: boolean }
+        is_cash_account: { type: boolean }
+        active: { type: boolean }
+        reference_code: { type: string, nullable: true }
+    AccountNode:
+      allOf:
+        - $ref: '#/components/schemas/Account'
+        - type: object
+          properties:
+            children:
+              type: array
+              items: { $ref: '#/components/schemas/AccountNode' }
+    AccountInput:
+      type: object
+      description: |
+        On create, `code` and `name` are required, and `type` is required for a
+        root account. On update every field is optional.
+      properties:
+        code: { type: string, maxLength: 50 }
+        name: { type: string, maxLength: 150 }
+        type: { type: string, enum: [ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE] }
+        parent_id: { type: integer, nullable: true, description: Create only; use /move afterwards. }
+        contra: { type: boolean, default: false }
+        accepts_entries: { type: boolean, default: true }
+        is_cash_account: { type: boolean, default: false }
+        reference_code: { type: string, maxLength: 50, nullable: true }
+    ImportRow:
+      type: object
+      required: [code, name]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        type: { type: string, nullable: true, description: Required for a root; a child inherits it when empty. }
+        parent_code: { type: string, nullable: true }
+        contra: { type: boolean }
+        accepts_entries: { type: boolean }
+        is_cash_account: { type: boolean }
+        reference_code: { type: string, nullable: true }
+    FiscalYear:
+      type: object
+      properties:
+        id: { type: integer }
+        entity_id: { type: integer }
+        label: { type: string }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        status: { type: string, enum: [OPEN, CLOSED] }
+    Period:
+      type: object
+      properties:
+        id: { type: integer }
+        fiscal_year_id: { type: integer }
+        start_date: { type: string, format: date }
+        end_date: { type: string, format: date }
+        status: { type: string, enum: [OPEN, CLOSED, LOCKED] }
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            type: { type: string, example: ConflictException }
+            message: { type: string }
+    ImportError:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            type: { type: string, example: ChartImportException }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  row: { type: integer, description: 1-based position of the data row. }
+                  code: { type: string, nullable: true }
+                  message: { type: string }
