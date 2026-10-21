@@ -23,4 +23,5 @@ class Contabil extends BaseContabil
     // public bool $commandsEnabled = true;
     // public string $defaultBasis = 'ACCRUAL'; // or 'CASH'
     // public ?string $dbGroup = null;
+    // public ?string $accountCodeMask = null; // for example '9.9.99.999'
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace CognitioTechny\Contabil\Application\Configuration;
 
+use CognitioTechny\Contabil\Domain\Chart\CodeMask;
 use CognitioTechny\Contabil\Domain\Exception\ConfigurationException;
 
 /**
@@ -25,6 +26,7 @@ final class Settings
         public readonly bool $commandsEnabled = true,
         public readonly string $defaultBasis = self::BASIS_ACCRUAL,
         public readonly ?string $dbGroup = null,
+        public readonly ?string $accountCodeMask = null,
     ) {
         if (preg_match('/^[A-Za-z][A-Za-z0-9_]{0,15}$/', $tablePrefix) !== 1) {
             throw new ConfigurationException('The table prefix must start with a letter and have at most 16 letters, digits or underscores.');
@@ -43,6 +45,14 @@ final class Settings
         }
 
         $this->tables = new TableNames($tablePrefix);
+
+        // Fails early on a malformed mask.
+        $this->codeMask();
+    }
+
+    public function codeMask(): CodeMask
+    {
+        return CodeMask::fromString($this->accountCodeMask);
     }
 
     /**
@@ -52,7 +62,7 @@ final class Settings
     {
         return new self(...array_intersect_key($values, array_flip([
             'tablePrefix', 'currency', 'defaultEntityId', 'apiRoute',
-            'routesEnabled', 'commandsEnabled', 'defaultBasis', 'dbGroup',
+            'routesEnabled', 'commandsEnabled', 'defaultBasis', 'dbGroup', 'accountCodeMask',
         ])));
     }
 }

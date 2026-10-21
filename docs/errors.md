@@ -11,3 +11,5 @@ Every exception the package throws on purpose derives from `CognitioTechny\Conta
 | `UnsupportedOperationException` | Optional port without an implementation | 501 |
 | `ConfigurationException` | Invalid package configuration | 500 |
 | any other `ContabilException` or `Throwable` | Unexpected | 500 |
+
+A rejected chart import raises `ChartImportException`, a `ValidationException` (422) that also carries one `{row, code, message}` entry per bad row; the API returns them in `error.details`. See [chart-of-accounts.md](chart-of-accounts.md#import-and-export).

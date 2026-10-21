@@ -2,7 +2,7 @@
 
 Implementation plan for `cognitiotechny/contabil`: an **agnostic**, headless, double-entry accounting package that can be installed in any CodeIgniter 4 application. It follows `.agents/specs.md`; where an earlier draft diverged from it, the specs win.
 
-> Status: **planning only.** All decisions in section 9 are closed. Tracked in issues #1 (epic) and #2–#6 (phases).
+> Status: all decisions in section 9 are closed. Tracked in issues #1 (epic) and #2–#6 (phases). Phases 1 and 2 are implemented; see [chart-of-accounts.md](chart-of-accounts.md) for phase 2.
 
 ## 1. Goals and principles
 

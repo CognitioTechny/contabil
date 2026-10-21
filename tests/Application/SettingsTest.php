@@ -63,6 +63,13 @@ final class SettingsTest extends CIUnitTestCase
         yield 'lowercase currency' => [['currency' => 'usd']];
         yield 'unknown basis' => [['defaultBasis' => 'HYBRID']];
         yield 'empty route' => [['apiRoute' => '/']];
+        yield 'malformed code mask' => [['accountCodeMask' => '9.Z']];
+    }
+
+    public function testCodeMaskIsOptionalAndParsed(): void
+    {
+        $this->assertFalse((new Settings())->codeMask()->isEnforced());
+        $this->assertSame(3, (new Settings(accountCodeMask: '9.99.999'))->codeMask()->maxLevel());
     }
 
     public function testUnknownLogicalTableIsRejected(): void
