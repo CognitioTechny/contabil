@@ -241,7 +241,7 @@ Each issue repeats the matching section of this document (scope, tasks, acceptan
 - [x] A new, empty CodeIgniter 4 app installs the package, migrates, creates a chart, posts, reverses, closes a period and emits reports under both bases, verified in CI (job `independence`; run locally against SQLite).
 - [x] The architecture test stops Domain/Application from importing `CodeIgniter\*`.
 - [x] Installation, ports, events and API docs ship with the package.
-- [ ] Release `v1.0.0` with CHANGELOG (the changelog is written under *Unreleased*; rename it and tag when the CI matrix is green).
+- [x] Release `v1.0.0` with CHANGELOG (released).
 
 ## 12. Decisions taken during implementation
 
