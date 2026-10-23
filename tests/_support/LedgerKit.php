@@ -20,6 +20,7 @@ use CognitioTechny\Contabil\Application\Entry\SettleEntry;
 use CognitioTechny\Contabil\Application\Ledger\Integrity;
 use CognitioTechny\Contabil\Application\Period\ManageFiscalYear;
 use CognitioTechny\Contabil\Application\Period\ManagePeriod;
+use CognitioTechny\Contabil\Application\Period\OpeningBalances;
 use CognitioTechny\Contabil\Application\PostingRule\PostingRules;
 use CognitioTechny\Contabil\Application\Reports\AccountMovements;
 use CognitioTechny\Contabil\Application\Reports\EntryListingBuilder;
@@ -64,6 +65,7 @@ final class LedgerKit
     public readonly EntryQueries $queries;
     public readonly ManagePeriod $periods;
     public readonly ManageFiscalYear $fiscalYears;
+    public readonly OpeningBalances $openingBalances;
     public readonly Integrity $integrity;
     public readonly TrialBalanceBuilder $trialBalance;
     public readonly GeneralLedgerBuilder $generalLedger;
@@ -111,21 +113,22 @@ final class LedgerKit
         $this->recorder = new EntryRecorder($ledger, $this->policy, $this->poster);
         $this->reverser = new EntryReverser($ledger, $this->poster);
 
-        $this->create        = new CreateEntry($guard, $this->recorder, $this->transactions, $user, $events);
-        $this->batch         = new PostBatch($guard, $this->recorder, $this->transactions, $user, $events);
-        $this->drafts        = new ManageDraft($ledger, $this->policy, $this->transactions);
-        $this->post          = new PostEntry($ledger, $this->poster, $this->transactions, $events);
-        $this->reverse       = new ReverseEntry($this->reverser, $this->transactions, $user, $events);
-        $this->settle        = new SettleEntry($ledger, $this->transactions, $events);
-        $this->queries       = new EntryQueries($guard, $ledger);
-        $this->periods       = new ManagePeriod($years, $ledger, $this->transactions, $user, $events);
-        $this->fiscalYears   = new ManageFiscalYear($years, $chart, $ledger, $ledger, $this->poster, $this->reverser, $this->transactions, $user, $events, $resultAccountCode);
-        $this->integrity     = new Integrity($guard, $ledger);
-        $this->trialBalance  = new TrialBalanceBuilder($guard, $chart, $ledger, $ledger);
-        $this->generalLedger = new GeneralLedgerBuilder($guard, $chart, $ledger);
-        $this->listing       = new EntryListingBuilder($guard, $chart, $ledger);
-        $this->statements    = new StatementBuilder($guard, $chart, $chart, $ledger, new AccountMovements($ledger));
-        $this->rules         = new PostingRules($guard, new InMemoryPostingRules(), $chart, $this->create);
+        $this->create          = new CreateEntry($guard, $this->recorder, $this->transactions, $user, $events);
+        $this->batch           = new PostBatch($guard, $this->recorder, $this->transactions, $user, $events);
+        $this->drafts          = new ManageDraft($ledger, $this->policy, $this->transactions);
+        $this->post            = new PostEntry($ledger, $this->poster, $this->transactions, $events);
+        $this->reverse         = new ReverseEntry($this->reverser, $this->transactions, $user, $events);
+        $this->settle          = new SettleEntry($ledger, $this->transactions, $events);
+        $this->queries         = new EntryQueries($guard, $ledger);
+        $this->periods         = new ManagePeriod($years, $ledger, $this->transactions, $user, $events);
+        $this->fiscalYears     = new ManageFiscalYear($years, $chart, $ledger, $ledger, $this->poster, $this->reverser, $this->transactions, $user, $events, $resultAccountCode);
+        $this->openingBalances = new OpeningBalances($years, $chart, $ledger, $this->poster, $this->reverser, $this->transactions, $user, $events);
+        $this->integrity       = new Integrity($guard, $ledger);
+        $this->trialBalance    = new TrialBalanceBuilder($guard, $chart, $ledger, $ledger);
+        $this->generalLedger   = new GeneralLedgerBuilder($guard, $chart, $ledger);
+        $this->listing         = new EntryListingBuilder($guard, $chart, $ledger);
+        $this->statements      = new StatementBuilder($guard, $chart, $chart, $ledger, new AccountMovements($ledger));
+        $this->rules           = new PostingRules($guard, new InMemoryPostingRules(), $chart, $this->create);
     }
 
     /**

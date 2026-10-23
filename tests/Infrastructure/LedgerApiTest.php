@@ -275,6 +275,56 @@ final class LedgerApiTest extends DbLedgerTestCase
         $this->assertSame([200, 'OPEN'], [$status, $reopened['data']['status']]);
     }
 
+    public function testOpeningBalancesThroughTheApi(): void
+    {
+        [$status, $none] = $this->send('get', 'fiscal-years/1/opening-balances');
+        $this->assertSame([200, null], [$status, $none['data']['entry']]);
+
+        $balances = [
+            ['account_code' => '1.1.01', 'side' => 'D', 'amount' => 150000],
+            ['account_id' => $this->ids['2.1.01'], 'side' => 'C', 'amount' => 40000],
+        ];
+
+        $this->assertSame(422, $this->send('post', 'fiscal-years/1/opening-balances', ['balances' => $balances])[0], 'unbalanced');
+        $this->assertSame(422, $this->send('post', 'fiscal-years/1/opening-balances', [])[0], 'no balances');
+        $this->assertSame(404, $this->send('post', 'fiscal-years/99/opening-balances', ['balances' => $balances])[0]);
+
+        [$status, $posted] = $this->send('post', 'fiscal-years/1/opening-balances', ['balances' => $balances, 'balancing_account_id' => $this->ids['3.1.01']]);
+        $this->assertSame(201, $status);
+        $this->assertSame(['2026-01-01', 'POSTED', 'contabil.opening-balances'], [$posted['data']['entry']['accrual_date'], $posted['data']['entry']['status'], $posted['data']['entry']['source_type']]);
+        $this->assertCount(3, $posted['data']['entry']['lines']);
+
+        $this->assertSame(409, $this->send('post', 'fiscal-years/1/opening-balances', ['balances' => $balances, 'balancing_account_id' => $this->ids['3.1.01']])[0]);
+
+        [$status, $replaced] = $this->send('post', 'fiscal-years/1/opening-balances', [
+            'balances' => [['account_code' => '1.1.01', 'side' => 'D', 'amount' => 1000], ['account_code' => '3.1.01', 'side' => 'C', 'amount' => 1000]],
+            'replace'  => true,
+        ]);
+        $this->assertSame(201, $status);
+        $this->assertSame($replaced['data']['entry']['id'], $this->send('get', 'fiscal-years/1/opening-balances')[1]['data']['entry']['id']);
+        $this->assertSame('REVERSED', $this->send('get', 'entries/' . $posted['data']['entry']['id'])[1]['data']['status']);
+
+        $this->actAs(['contabil.period.manage']);
+        $this->assertSame(403, $this->send('post', 'fiscal-years/1/opening-balances', ['balances' => $balances])[0], 'posting also needs contabil.entry.post');
+    }
+
+    public function testOpeningTheNextFiscalYear(): void
+    {
+        [$status, $opened] = $this->send('post', 'fiscal-years/1/open-next');
+        $this->assertSame(201, $status);
+        $this->assertSame(['2027', '2027-01-01', 'OPEN'], [$opened['data']['label'], $opened['data']['start_date'], $opened['data']['status']]);
+        $this->assertCount(12, $opened['data']['periods']);
+
+        $this->assertSame(409, $this->send('post', 'fiscal-years/1/open-next')[0], 'already open');
+        $this->assertSame(201, $this->send('post', 'fiscal-years/' . $opened['data']['id'] . '/open-next', ['label' => 'FY28'])[0]);
+        $this->assertSame(404, $this->send('post', 'fiscal-years/99/open-next')[0]);
+
+        $this->send('post', 'entries', $this->entryBody('2027-02-01', 500, ['post' => true]));
+        $this->assertSame(409, $this->send('post', 'fiscal-years/' . $opened['data']['id'] . '/opening-balances', ['balances' => [
+            ['account_code' => '1.1.01', 'side' => 'D', 'amount' => 1], ['account_code' => '3.1.01', 'side' => 'C', 'amount' => 1],
+        ]])[0], 'only the first year takes opening balances');
+    }
+
     public function testReportsAsJson(): void
     {
         $this->send('post', 'entries', $this->entryBody('2026-03-02', 1000, ['post' => true]));
@@ -360,7 +410,8 @@ final class LedgerApiTest extends DbLedgerTestCase
         foreach ([
             ['get', 'entries'], ['get', 'entries/' . $entry], ['post', 'entries/' . $entry . '/post'],
             ['post', 'entries/' . $entry . '/reverse'], ['post', 'entries/batch'], ['post', 'periods/1/close'],
-            ['post', 'fiscal-years/1/close'], ['get', 'reports/journal'], ['get', 'reports/trial-balance?from=2026-03-01&to=2026-03-31'],
+            ['post', 'fiscal-years/1/close'], ['post', 'fiscal-years/1/open-next'], ['get', 'fiscal-years/1/opening-balances'],
+            ['post', 'fiscal-years/1/opening-balances'], ['get', 'reports/journal'], ['get', 'reports/trial-balance?from=2026-03-01&to=2026-03-31'],
         ] as [$method, $path]) {
             $this->assertSame(403, $this->send($method, $path)[0], $method . ' ' . $path);
         }

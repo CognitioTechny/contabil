@@ -37,6 +37,7 @@ use CognitioTechny\Contabil\Application\Ledger\Integrity;
 use CognitioTechny\Contabil\Application\Ledger\RecalculateBalances;
 use CognitioTechny\Contabil\Application\Period\ManageFiscalYear;
 use CognitioTechny\Contabil\Application\Period\ManagePeriod;
+use CognitioTechny\Contabil\Application\Period\OpeningBalances;
 use CognitioTechny\Contabil\Application\Ports\ClockInterface;
 use CognitioTechny\Contabil\Application\Ports\CurrentUserInterface;
 use CognitioTechny\Contabil\Application\PostingRule\PostingRules;
@@ -244,6 +245,20 @@ final class UseCases
             $this->user,
             $this->events,
             $this->settings->resultAccountCode,
+        );
+    }
+
+    public function openingBalances(): OpeningBalances
+    {
+        return new OpeningBalances(
+            $this->years,
+            $this->accounts,
+            $this->entries,
+            $this->poster,
+            $this->reverser(),
+            $this->transactions,
+            $this->user,
+            $this->events,
         );
     }
 

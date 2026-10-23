@@ -13,11 +13,13 @@ All classes live in `CognitioTechny\Contabil\Domain\Event`.
 
 | Event | When | Properties |
 |---|---|---|
-| `EntryPosted` | An entry entered the ledger (including reversals and closing entries) | `entry` (`JournalEntry`) |
+| `EntryPosted` | An entry entered the ledger (including reversals, opening and closing entries) | `entry` (`JournalEntry`) |
 | `EntryReversed` | An entry was cancelled | `original`, `reversal`, `reason` |
 | `EntrySettled` | A settlement link was recorded | `entityId`, `settlement` |
 | `PeriodClosed` | A period was closed (also the last period when a year closes) | `entityId`, `period`, `userId` |
 | `PeriodReopened` | A closed period was opened again | `entityId`, `period`, `reason`, `userId` |
+| `FiscalYearOpened` | The year after another was opened | `year`, `previous`, `userId` |
+| `OpeningBalancesRecorded` | The opening balances of the first year were posted | `year`, `entry`, `replaced` (the reversed opening entry, or null), `userId` |
 | `FiscalYearClosed` | A year was closed | `year`, `closingEntry` (null if none), `userId` |
 | `FiscalYearReopened` | A year was reopened | `year`, `reversalOfClosing`, `reason`, `userId` |
 

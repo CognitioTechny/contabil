@@ -13,6 +13,7 @@ use CognitioTechny\Contabil\Application\Repository\TransactionRunnerInterface;
 use CognitioTechny\Contabil\Application\Support\EventPublisher;
 use CognitioTechny\Contabil\Domain\Calendar\FiscalYear;
 use CognitioTechny\Contabil\Domain\Calendar\FiscalYearRepositoryInterface;
+use CognitioTechny\Contabil\Domain\Calendar\Period;
 use CognitioTechny\Contabil\Domain\Calendar\PeriodStatus;
 use CognitioTechny\Contabil\Domain\Calendar\YearStatus;
 use CognitioTechny\Contabil\Domain\Chart\AccountRepositoryInterface;
@@ -25,6 +26,7 @@ use CognitioTechny\Contabil\Domain\Entry\Line;
 use CognitioTechny\Contabil\Domain\Entry\Side;
 use CognitioTechny\Contabil\Domain\Event\EntryPosted;
 use CognitioTechny\Contabil\Domain\Event\FiscalYearClosed;
+use CognitioTechny\Contabil\Domain\Event\FiscalYearOpened;
 use CognitioTechny\Contabil\Domain\Event\FiscalYearReopened;
 use CognitioTechny\Contabil\Domain\Event\PeriodClosed;
 use CognitioTechny\Contabil\Domain\Event\PeriodReopened;
@@ -33,8 +35,8 @@ use CognitioTechny\Contabil\Domain\Exception\NotFoundException;
 use CognitioTechny\Contabil\Domain\Exception\ValidationException;
 
 /**
- * Closes a fiscal year by posting the result-closing entry, and reopens it by
- * reversing that entry.
+ * Opens the fiscal year that follows another, closes a fiscal year by posting
+ * the result-closing entry, and reopens it by reversing that entry.
  */
 final class ManageFiscalYear
 {
@@ -52,6 +54,51 @@ final class ManageFiscalYear
         private readonly EventPublisher $events,
         private readonly ?string $resultAccountCode = null,
     ) {
+    }
+
+    /**
+     * Opens the fiscal year that starts the day after `$yearId` ends, with its
+     * twelve periods. The previous year does not need to be closed: both can
+     * take entries while the closing work goes on.
+     *
+     * No entry is posted. Balances are cumulative in the ledger, so the asset,
+     * liability and equity accounts start the new year with their closing
+     * balance of the previous one; revenue and expense start from zero once
+     * the previous year is closed.
+     *
+     * @param string|null $label Defaults to the label {@see FiscalYear::start()} gives.
+     *
+     * @return array{0: FiscalYear, 1: list<Period>}
+     *
+     * @throws ConflictException   The next year already exists, or the new one overlaps another year.
+     * @throws NotFoundException
+     * @throws ValidationException The label is invalid.
+     */
+    public function openNext(int $entityId, int $yearId, ?string $label = null): array
+    {
+        [$opened, $events] = $this->transactions->run(function () use ($entityId, $yearId, $label): array {
+            $this->entries->lockEntity($entityId);
+
+            $previous = $this->requireYear($entityId, $yearId);
+            $start    = $previous->endDate->modify('+1 day');
+
+            foreach ($this->years->forEntity($entityId) as $other) {
+                if ($other->startDate->format('Y-m-d') === $start->format('Y-m-d')) {
+                    throw new ConflictException(sprintf('The fiscal year after "%s" is already open as "%s".', $previous->label, $other->label));
+                }
+            }
+
+            [$year, $periods] = FiscalYear::start($entityId, $start, $label);
+            $year->assertNoOverlap($this->years->forEntity($entityId));
+
+            $opened = $this->years->insert($year, $periods);
+
+            return [$opened, [new FiscalYearOpened($opened[0], $previous, CreateEntry::userId($this->user))]];
+        });
+
+        $this->events->publish($events);
+
+        return $opened;
     }
 
     /**

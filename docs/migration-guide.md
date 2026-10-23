@@ -19,7 +19,7 @@ php spark contabil:create-entity --name "Acme Ltd" --currency EUR
 php spark contabil:seed-chart --model generic --entity 1     # or import your own chart
 ```
 
-Import the legacy chart with `POST /accounts/import` (all-or-nothing, errors per row) or the `ImportChart` use case, mapping legacy codes to package codes and keeping the legacy code in `reference_code`. Create a fiscal year for every year you will load.
+Import the legacy chart with `POST /accounts/import` (all-or-nothing, errors per row) or the `ImportChart` use case, mapping legacy codes to package codes and keeping the legacy code in `reference_code`. Create a fiscal year for every year you will load. If you do not load the full history, start from the balances instead: create only the first year you will keep and post the legacy closing balances of the year before as its opening balances (`contabil:opening-balances`, see [entries.md](entries.md#opening-the-books-opening-balances)).
 
 ### 2. Choose the period state
 
