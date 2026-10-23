@@ -17,15 +17,27 @@ use Throwable;
  */
 final class InMemoryChart implements AccountRepositoryInterface, AccountMovementInterface, EntityRepositoryInterface, TransactionRunnerInterface
 {
-    /** @var array<int, Account> */
+    /**
+     * @var array<int, Account>
+     */
     private array $accounts = [];
 
-    /** @var array<int, true> */
+    /**
+     * @var array<int, true>
+     */
     private array $entities = [1 => true];
 
-    /** @var array<int, true> */
+    /**
+     * @var array<int, true>
+     */
     private array $withMovement = [];
-    private int $nextId         = 1;
+
+    /**
+     * @var array<int, string>
+     */
+    private array $basis = [];
+
+    private int $nextId = 1;
 
     public function markMovement(int $accountId): void
     {
@@ -90,6 +102,16 @@ final class InMemoryChart implements AccountRepositoryInterface, AccountMovement
     public function exists(int $id): bool
     {
         return isset($this->entities[$id]);
+    }
+
+    public function defaultBasis(int $id): ?string
+    {
+        return isset($this->entities[$id]) ? $this->basis[$id] ?? 'ACCRUAL' : null;
+    }
+
+    public function setBasis(int $id, string $basis): void
+    {
+        $this->basis[$id] = $basis;
     }
 
     public function create(string $name, ?string $taxId, string $currency, string $basis): int

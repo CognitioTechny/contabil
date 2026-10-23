@@ -79,7 +79,7 @@ Paths are relative, use `/` and never start with `/`.
 
 ## Registering adapters
 
-The package reaches its ports through CodeIgniter services: `contabilAuthorizer`, `contabilCurrentUser`, `contabilCurrentEntity`, `contabilClock` and `contabilEventDispatcher`. The host plugs in its adapter by defining the method of the same name in its own `app/Config/Services.php`, which takes precedence over the package:
+The package reaches its ports through CodeIgniter services: `contabilAuthorizer`, `contabilCurrentUser`, `contabilCurrentEntity`, `contabilClock`, `contabilEventDispatcher` and `contabilPdfRenderer`. The host plugs in its adapter by defining the method of the same name in its own `app/Config/Services.php`, which takes precedence over the package:
 
 ```php
 public static function contabilAuthorizer(bool $getShared = true): AuthorizerInterface

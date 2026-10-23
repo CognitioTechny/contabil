@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace CognitioTechny\Contabil\Application\Chart;
 
 use CognitioTechny\Contabil\Application\Repository\EntityGuard;
-use CognitioTechny\Contabil\Domain\Chart\AccountRepositoryInterface;
 
 /**
  * Exports the chart in the layout {@see ImportChart} reads, parents before

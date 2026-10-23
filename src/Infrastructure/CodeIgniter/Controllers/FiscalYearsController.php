@@ -37,6 +37,37 @@ class FiscalYearsController extends ApiController
         }, 201);
     }
 
+    /**
+     * Closes the year, posting the closing entry that moves the result to
+     * equity. Optional body: `result_account_id`.
+     */
+    public function close(string $id): ResponseInterface
+    {
+        return $this->handle('contabil.period.manage', function (int $entity) use ($id): array {
+            $body = $this->jsonBody();
+
+            [$year, $closing] = $this->useCases()->manageFiscalYear()->close(
+                $entity,
+                (int) $id,
+                isset($body['result_account_id']) ? (int) $body['result_account_id'] : null,
+            );
+
+            return $year->toArray() + ['closing_entry' => $closing?->toArray()];
+        });
+    }
+
+    /**
+     * Reopens a closed year by reversing its closing entry. Body: `reason`.
+     */
+    public function reopen(string $id): ResponseInterface
+    {
+        return $this->handle('contabil.period.manage', fn (int $entity): array => $this->useCases()->manageFiscalYear()->reopen(
+            $entity,
+            (int) $id,
+            (string) ($this->jsonBody()['reason'] ?? ''),
+        )->toArray());
+    }
+
     public function periods(string $id): ResponseInterface
     {
         return $this->handle('contabil.chart.view', fn (int $entity): array => array_map(

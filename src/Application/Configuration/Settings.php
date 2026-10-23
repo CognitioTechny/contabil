@@ -27,6 +27,7 @@ final class Settings
         public readonly string $defaultBasis = self::BASIS_ACCRUAL,
         public readonly ?string $dbGroup = null,
         public readonly ?string $accountCodeMask = null,
+        public readonly ?string $resultAccountCode = null,
     ) {
         if (preg_match('/^[A-Za-z][A-Za-z0-9_]{0,15}$/', $tablePrefix) !== 1) {
             throw new ConfigurationException('The table prefix must start with a letter and have at most 16 letters, digits or underscores.');
@@ -62,7 +63,7 @@ final class Settings
     {
         return new self(...array_intersect_key($values, array_flip([
             'tablePrefix', 'currency', 'defaultEntityId', 'apiRoute',
-            'routesEnabled', 'commandsEnabled', 'defaultBasis', 'dbGroup', 'accountCodeMask',
+            'routesEnabled', 'commandsEnabled', 'defaultBasis', 'dbGroup', 'accountCodeMask', 'resultAccountCode',
         ])));
     }
 }

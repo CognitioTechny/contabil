@@ -52,7 +52,7 @@ final class SchemaTest extends DatabaseTestCase
     public function testRequiredIndexesExist(): void
     {
         $expected = [
-            'acc_entries'     => ['acc_idx_entries_entity_accrual', 'acc_idx_entries_entity_cash', 'acc_idx_entries_source', 'acc_uq_entries_entity_idempotency'],
+            'acc_entries'     => ['acc_idx_entries_entity_accrual', 'acc_idx_entries_entity_cash', 'acc_idx_entries_source', 'acc_uq_entries_entity_idempotency', 'acc_uq_entries_entity_chain', 'acc_uq_entries_entity_year_number'],
             'acc_entry_lines' => ['acc_idx_entry_lines_account_entry'],
             'acc_accounts'    => ['acc_uq_accounts_entity_code'],
         ];
@@ -95,7 +95,7 @@ final class SchemaTest extends DatabaseTestCase
         $entity = $this->entity('A');
 
         $this->db->table('acc_entries')->insert([
-            'entity_id' => $entity, 'accrual_date' => '2026-01-31', 'recorded_at' => '2026-01-31 10:00:00',
+            'entity_id'   => $entity, 'accrual_date' => '2026-01-31', 'recorded_at' => '2026-01-31 10:00:00',
             'description' => 'Invoice', 'status' => 'DRAFT', 'user_id' => 'uuid-7f3a',
             'source_type' => 'invoice', 'source_id' => 'INV-0001',
         ]);
@@ -127,7 +127,7 @@ final class SchemaTest extends DatabaseTestCase
     private function entryRow(int $entity, string $key): void
     {
         $this->db->table('acc_entries')->insert([
-            'entity_id' => $entity, 'accrual_date' => '2026-01-31', 'recorded_at' => '2026-01-31 10:00:00',
+            'entity_id'   => $entity, 'accrual_date' => '2026-01-31', 'recorded_at' => '2026-01-31 10:00:00',
             'description' => 'Test', 'status' => 'DRAFT', 'idempotency_key' => $key,
         ]);
     }

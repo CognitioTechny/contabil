@@ -9,6 +9,7 @@ use CodeIgniter\Database\Migration;
 use CognitioTechny\Contabil\Application\Configuration\Settings;
 use CognitioTechny\Contabil\Application\Configuration\TableNames;
 use CognitioTechny\Contabil\Infrastructure\CodeIgniter\Config\Contabil;
+use Throwable;
 
 /**
  * Base class of the package migrations. Reads the table prefix and database
@@ -96,7 +97,7 @@ abstract class ContabilMigration extends Migration
                 $this->db->escapeIdentifiers($this->tables->prefix . $name),
                 $expression,
             ));
-        } catch (\Throwable) {
+        } catch (Throwable) {
             // Engine without CHECK support; the domain layer enforces the rule.
         }
     }

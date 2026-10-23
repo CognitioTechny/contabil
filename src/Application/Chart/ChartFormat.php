@@ -16,9 +16,8 @@ use JsonException;
  */
 final class ChartFormat
 {
-    public const CSV  = 'csv';
-    public const JSON = 'json';
-
+    public const CSV     = 'csv';
+    public const JSON    = 'json';
     public const COLUMNS = ['code', 'name', 'type', 'parent_code', 'contra', 'accepts_entries', 'is_cash_account', 'reference_code'];
 
     /**
@@ -43,7 +42,7 @@ final class ChartFormat
             return json_encode(['accounts' => $rows], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR) . "\n";
         }
 
-        $stream = fopen('php://temp', 'r+');
+        $stream = fopen('php://temp', 'r+b');
         fputcsv($stream, self::COLUMNS, ',', '"', '');
 
         foreach ($rows as $row) {
@@ -103,7 +102,7 @@ final class ChartFormat
     private static function parseCsv(string $content): array
     {
         $content = preg_replace('/^\xEF\xBB\xBF/', '', $content) ?? $content;
-        $stream  = fopen('php://temp', 'r+');
+        $stream  = fopen('php://temp', 'r+b');
         fwrite($stream, $content);
         rewind($stream);
 

@@ -8,15 +8,22 @@ use CognitioTechny\Contabil\Application\Repository\TransactionRunnerInterface;
 use CognitioTechny\Contabil\Domain\Calendar\FiscalYear;
 use CognitioTechny\Contabil\Domain\Calendar\FiscalYearRepositoryInterface;
 use CognitioTechny\Contabil\Domain\Calendar\Period;
+use DateTimeImmutable;
+use Throwable;
 
 final class InMemoryFiscalYears implements FiscalYearRepositoryInterface, TransactionRunnerInterface
 {
-    /** @var array<int, FiscalYear> */
+    /**
+     * @var array<int, FiscalYear>
+     */
     private array $years = [];
 
-    /** @var array<int, list<Period>> */
+    /**
+     * @var array<int, list<Period>>
+     */
     private array $periods = [];
-    private int $nextId    = 1;
+
+    private int $nextId = 1;
 
     public function forEntity(int $entityId): array
     {
@@ -35,9 +42,9 @@ final class InMemoryFiscalYears implements FiscalYearRepositoryInterface, Transa
 
     public function insert(FiscalYear $year, array $periods): array
     {
-        $year                      = $year->withId($this->nextId++);
-        $this->years[$year->id]    = $year;
-        $this->periods[$year->id]  = array_map(
+        $year                     = $year->withId($this->nextId++);
+        $this->years[$year->id]   = $year;
+        $this->periods[$year->id] = array_map(
             fn (Period $period): Period => $period->withFiscalYearId($year->id)->withId($this->nextId++),
             $periods,
         );
@@ -50,8 +57,56 @@ final class InMemoryFiscalYears implements FiscalYearRepositoryInterface, Transa
         return $this->periods[$fiscalYearId] ?? [];
     }
 
+    public function periodContaining(int $entityId, DateTimeImmutable $date): ?array
+    {
+        foreach ($this->forEntity($entityId) as $year) {
+            foreach ($this->periods[$year->id] ?? [] as $period) {
+                if ($period->contains($date)) {
+                    return [$year, $period];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public function findPeriod(int $entityId, int $periodId): ?array
+    {
+        foreach ($this->forEntity($entityId) as $year) {
+            foreach ($this->periods[$year->id] ?? [] as $period) {
+                if ($period->id === $periodId) {
+                    return [$year, $period];
+                }
+            }
+        }
+
+        return null;
+    }
+
+    public function savePeriod(Period $period): void
+    {
+        foreach ($this->periods[$period->fiscalYearId] as $index => $stored) {
+            if ($stored->id === $period->id) {
+                $this->periods[$period->fiscalYearId][$index] = $period;
+            }
+        }
+    }
+
+    public function saveYear(FiscalYear $year): void
+    {
+        $this->years[$year->id] = $year;
+    }
+
     public function run(callable $work): mixed
     {
-        return $work();
+        $snapshot = [$this->years, $this->periods, $this->nextId];
+
+        try {
+            return $work();
+        } catch (Throwable $e) {
+            [$this->years, $this->periods, $this->nextId] = $snapshot;
+
+            throw $e;
+        }
     }
 }

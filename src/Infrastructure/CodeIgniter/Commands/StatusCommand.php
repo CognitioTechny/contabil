@@ -21,8 +21,8 @@ class StatusCommand extends ContabilCommand
             return EXIT_ERROR;
         }
 
-        $runner   = $this->runner();
-        $applied  = [];
+        $runner  = $this->runner();
+        $applied = [];
 
         foreach ($runner->getHistory($this->dbGroup()) as $row) {
             if ($row->namespace === self::MIGRATION_NAMESPACE) {
@@ -35,8 +35,8 @@ class StatusCommand extends ContabilCommand
 
         foreach ($runner->findMigrations() as $migration) {
             $isApplied = isset($applied[$migration->version]);
-            $pending  += $isApplied ? 0 : 1;
-            $rows[]    = [$migration->name, $isApplied ? 'applied (batch ' . $applied[$migration->version] . ')' : 'pending'];
+            $pending += $isApplied ? 0 : 1;
+            $rows[] = [$migration->name, $isApplied ? 'applied (batch ' . $applied[$migration->version] . ')' : 'pending'];
         }
 
         CLI::write('Schema version shipped: ' . SchemaVersion::CURRENT);

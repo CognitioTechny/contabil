@@ -8,6 +8,7 @@ use CodeIgniter\Config\BaseService;
 use CognitioTechny\Contabil\Application\Configuration\Settings;
 use CognitioTechny\Contabil\Application\Defaults\DenyAllAuthorizer;
 use CognitioTechny\Contabil\Application\Defaults\NullEventDispatcher;
+use CognitioTechny\Contabil\Application\Defaults\NullPdfRenderer;
 use CognitioTechny\Contabil\Application\Defaults\StaticCurrentEntity;
 use CognitioTechny\Contabil\Application\Defaults\StaticCurrentUser;
 use CognitioTechny\Contabil\Application\Defaults\SystemClock;
@@ -15,6 +16,7 @@ use CognitioTechny\Contabil\Application\Ports\AuthorizerInterface;
 use CognitioTechny\Contabil\Application\Ports\ClockInterface;
 use CognitioTechny\Contabil\Application\Ports\CurrentEntityInterface;
 use CognitioTechny\Contabil\Application\Ports\CurrentUserInterface;
+use CognitioTechny\Contabil\Application\Ports\PdfRendererInterface;
 use CognitioTechny\Contabil\Infrastructure\CodeIgniter\UseCases;
 use Config\Database;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -89,6 +91,18 @@ class Services extends BaseService
         return new NullEventDispatcher();
     }
 
+    /**
+     * No PDF library is shipped: PDF export answers 501 until the host provides one.
+     */
+    public static function contabilPdfRenderer(bool $getShared = true): PdfRendererInterface
+    {
+        if ($getShared) {
+            return static::getSharedInstance('contabilPdfRenderer');
+        }
+
+        return new NullPdfRenderer();
+    }
+
     public static function contabil(bool $getShared = true): UseCases
     {
         if ($getShared) {
@@ -101,6 +115,8 @@ class Services extends BaseService
             $settings,
             Database::connect($settings->dbGroup),
             static::contabilClock(),
+            static::contabilCurrentUser(),
+            static::contabilEventDispatcher(),
         );
     }
 }

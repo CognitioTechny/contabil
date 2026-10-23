@@ -79,6 +79,49 @@ final class DbFiscalYearRepository implements FiscalYearRepositoryInterface
         ), $rows);
     }
 
+    public function periodContaining(int $entityId, DateTimeImmutable $date): ?array
+    {
+        $row = $this->db->table($this->tables->name('periods') . ' p')
+            ->select('p.id AS period_id, p.fiscal_year_id, p.start_date AS period_start, p.end_date AS period_end, p.status AS period_status, y.*')
+            ->join($this->tables->name('fiscal_years') . ' y', 'y.id = p.fiscal_year_id')
+            ->where('y.entity_id', $entityId)
+            ->where('p.start_date <=', $date->format('Y-m-d'))
+            ->where('p.end_date >=', $date->format('Y-m-d'))
+            ->get()
+            ->getRowArray();
+
+        return $row === null ? null : self::hydratePair($row);
+    }
+
+    public function findPeriod(int $entityId, int $periodId): ?array
+    {
+        $row = $this->db->table($this->tables->name('periods') . ' p')
+            ->select('p.id AS period_id, p.fiscal_year_id, p.start_date AS period_start, p.end_date AS period_end, p.status AS period_status, y.*')
+            ->join($this->tables->name('fiscal_years') . ' y', 'y.id = p.fiscal_year_id')
+            ->where('y.entity_id', $entityId)
+            ->where('p.id', $periodId)
+            ->get()
+            ->getRowArray();
+
+        return $row === null ? null : self::hydratePair($row);
+    }
+
+    public function savePeriod(Period $period): void
+    {
+        $this->periods()->where('id', $period->id)->update([
+            'status'     => $period->status->value,
+            'updated_at' => $this->clock->now()->format('Y-m-d H:i:s'),
+        ]);
+    }
+
+    public function saveYear(FiscalYear $year): void
+    {
+        $this->years()->where('id', $year->id)->update([
+            'status'     => $year->status->value,
+            'updated_at' => $this->clock->now()->format('Y-m-d H:i:s'),
+        ]);
+    }
+
     private function years(): BaseBuilder
     {
         return $this->db->table($this->tables->name('fiscal_years'));
@@ -87,6 +130,25 @@ final class DbFiscalYearRepository implements FiscalYearRepositoryInterface
     private function periods(): BaseBuilder
     {
         return $this->db->table($this->tables->name('periods'));
+    }
+
+    /**
+     * @param array<string, mixed> $row A period joined with its year (`y.*`).
+     *
+     * @return array{0: FiscalYear, 1: Period}
+     */
+    private static function hydratePair(array $row): array
+    {
+        return [
+            self::hydrateYear($row),
+            new Period(
+                (int) $row['period_id'],
+                (int) $row['fiscal_year_id'],
+                new DateTimeImmutable((string) $row['period_start']),
+                new DateTimeImmutable((string) $row['period_end']),
+                PeriodStatus::from((string) $row['period_status']),
+            ),
+        ];
     }
 
     /**

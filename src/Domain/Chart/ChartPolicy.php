@@ -36,8 +36,8 @@ final class ChartPolicy
      * Builds a new, unsaved account. When the parent is a leaf it must be
      * turned into a group by the caller ({@see Account::asGroup()}).
      *
-     * @throws NotFoundException   The parent does not exist in the entity.
      * @throws ConflictException   The code is taken, or the parent has movement.
+     * @throws NotFoundException   The parent does not exist in the entity.
      * @throws ValidationException Any other invariant is violated.
      */
     public function newAccount(
@@ -51,8 +51,8 @@ final class ChartPolicy
         bool $isCashAccount = false,
         ?string $referenceCode = null,
     ): Account {
-        $code = self::cleanCode($code);
-        $name = self::cleanName($name);
+        $code   = self::cleanCode($code);
+        $name   = self::cleanName($name);
         $parent = null;
 
         if ($parentId !== null) {

@@ -10,7 +10,8 @@ use CognitioTechny\Contabil\Infrastructure\CodeIgniter\Database\ContabilMigratio
  * Journal entries, their lines, settlements and the gap-free number counters.
  *
  * `user_id`, `source_type` and `source_id` are opaque host identifiers: they
- * have no foreign key.
+ * have no foreign key. `chain_position` orders the per-entity hash chain and is
+ * set when an entry is posted.
  */
 class CreateEntryTables extends ContabilMigration
 {
@@ -36,6 +37,7 @@ class CreateEntryTables extends ContabilMigration
             'user_id'         => $this->textField(100, true),
             'hash'            => $this->textField(64, true),
             'previous_hash'   => $this->textField(64, true),
+            'chain_position'  => $this->refField(true),
         ]);
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey(['entity_id', 'accrual_date'], false, false, $t->key('idx', 'entries', 'entity', 'accrual'));
@@ -43,6 +45,7 @@ class CreateEntryTables extends ContabilMigration
         $this->forge->addKey(['source_type', 'source_id'], false, false, $t->key('idx', 'entries', 'source'));
         $this->forge->addKey(['entity_id', 'idempotency_key'], false, true, $t->key('uq', 'entries', 'entity', 'idempotency'));
         $this->forge->addKey(['entity_id', 'fiscal_year_id', 'number'], false, true, $t->key('uq', 'entries', 'entity', 'year', 'number'));
+        $this->forge->addKey(['entity_id', 'chain_position'], false, true, $t->key('uq', 'entries', 'entity', 'chain'));
         $this->forge->addKey('reversal_of_id', false, false, $t->key('idx', 'entries', 'reversal'));
         $this->foreignKey('entity_id', 'entities', $t->key('fk', 'entries', 'entity'));
         $this->foreignKey('fiscal_year_id', 'fiscal_years', $t->key('fk', 'entries', 'year'));

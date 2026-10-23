@@ -6,6 +6,7 @@ namespace CognitioTechny\Contabil\Tests\Infrastructure;
 
 use CodeIgniter\Test\Filters\CITestStreamFilter;
 use CognitioTechny\Contabil\Application\Chart\AccountNode;
+use CognitioTechny\Contabil\Domain\Chart\Account;
 use CognitioTechny\Contabil\Domain\Chart\AccountType;
 use CognitioTechny\Contabil\Infrastructure\CodeIgniter\Commands\SeedChartCommand;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -16,16 +17,6 @@ use Tests\Support\DatabaseTestCase;
  */
 final class SeedChartTest extends DatabaseTestCase
 {
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function models(): iterable
-    {
-        foreach (SeedChartCommand::models() as $model) {
-            yield $model => [$model];
-        }
-    }
-
     public function testBothModelsShip(): void
     {
         $this->assertSame(['generic', 'professional-services'], SeedChartCommand::models());
@@ -44,6 +35,7 @@ final class SeedChartTest extends DatabaseTestCase
         $this->assertGreaterThan(30, count($accounts));
 
         $types = [];
+
         foreach (service('contabil')->getAccountTree()->execute($entity) as $root) {
             $types[] = $root->account->type;
             $this->assertSame(1, $root->account->level);
@@ -78,6 +70,16 @@ final class SeedChartTest extends DatabaseTestCase
 
         $this->assertSame($before, $after);
         $this->assertStringContainsString('0 account(s) created', $output);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function models(): iterable
+    {
+        foreach (SeedChartCommand::models() as $model) {
+            yield $model => [$model];
+        }
     }
 
     public function testProfessionalServicesKeepsClientFundsOutOfEquity(): void
@@ -116,9 +118,9 @@ final class SeedChartTest extends DatabaseTestCase
     }
 
     /**
-     * @param list<\CognitioTechny\Contabil\Domain\Chart\Account> $accounts
+     * @param list<Account> $accounts
      */
-    private function byCode(array $accounts, string $code): ?\CognitioTechny\Contabil\Domain\Chart\Account
+    private function byCode(array $accounts, string $code): ?Account
     {
         foreach ($accounts as $account) {
             if ($account->code === $code) {

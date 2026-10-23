@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  coding-standard:
+    name: Coding standard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          coverage: none
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: composer cs
+
+  tests-sqlite:
+    name: PHPUnit (PHP ${{ matrix.php }}, SQLite)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: intl, mbstring, sqlite3
+          coverage: none
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: vendor/bin/phpunit
+
+  tests-mysql:
+    name: PHPUnit (PHP ${{ matrix.php }}, MySQL)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.2', '8.3', '8.4']
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: contabil_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      # Read by CodeIgniter's test database group; see phpunit.xml.dist.
+      database.tests.DBDriver: MySQLi
+      database.tests.hostname: 127.0.0.1
+      database.tests.database: contabil_test
+      database.tests.username: root
+      database.tests.password: ''
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: intl, mbstring, mysqli
+          coverage: none
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: vendor/bin/phpunit
+
+  independence:
+    name: Independence (empty CodeIgniter 4 app)
+    runs-on: ubuntu-latest
+    needs: [tests-sqlite, tests-mysql]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: package
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: intl, mbstring, sqlite3
+          coverage: none
+      - name: Create an empty CodeIgniter 4 application
+        run: composer create-project codeigniter4/appstarter app --no-interaction --no-progress
+      - name: Install the package from this checkout
+        working-directory: app
+        run: |
+          composer config repositories.contabil "{\"type\":\"path\",\"url\":\"$GITHUB_WORKSPACE/package\",\"options\":{\"symlink\":false,\"versions\":{\"cognitiotechny/contabil\":\"dev-ci\"}}}"
+          composer require cognitiotechny/contabil:dev-ci --no-interaction --no-progress
+      - name: Configure SQLite and add the check commands
+        working-directory: app
+        run: |
+          cp env .env
+          printf '\nCI_ENVIRONMENT = development\ndatabase.default.DBDriver = SQLite3\ndatabase.default.database = independence.sqlite\n' >> .env
+          mkdir -p app/Commands
+          cp ../package/tests/Independence/IndependenceCheck.php ../package/tests/Independence/ConcurrencyWorker.php app/Commands/
+      - name: Install
+        working-directory: app
+        run: php spark contabil:install
+      - name: Create a chart, post, reverse, close a period, read the ledger and trial balance
+        working-directory: app
+        run: php spark contabil:independence-check
+      - name: 50 concurrent postings keep the numbering gap-free
+        working-directory: app
+        run: |
+          for n in $(seq 1 50); do php spark contabil:concurrency-worker 1 "$n" > "writable/worker-$n.log" 2>&1 & done
+          wait
+          if grep -l failed writable/worker-*.log; then echo 'a worker failed'; exit 1; fi
+          php spark contabil:verify-integrity --entity 1 | tee writable/verify.log
+          grep -q 'Entity 1: 54 entries checked' writable/verify.log

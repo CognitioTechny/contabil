@@ -14,8 +14,8 @@ use CognitioTechny\Contabil\Application\Chart\MoveAccount;
 use CognitioTechny\Contabil\Application\Chart\ReactivateAccount;
 use CognitioTechny\Contabil\Application\Chart\UpdateAccount;
 use CognitioTechny\Contabil\Application\Repository\EntityGuard;
-use CognitioTechny\Contabil\Domain\Chart\CodeMask;
 use CognitioTechny\Contabil\Domain\Chart\ChartPolicy;
+use CognitioTechny\Contabil\Domain\Chart\CodeMask;
 
 /**
  * Wires the chart use cases over {@see InMemoryChart}, so tests need no database.

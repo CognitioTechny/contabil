@@ -1,9 +1,11 @@
 openapi: 3.0.3
 info:
-  title: Contabil API (chart of accounts and fiscal calendar)
-  version: 0.2.0
+  title: Contabil API
+  version: 1.0.0
   description: |
-    Phase 2 of the Contabil accounting package. Every route works on the current
+    Chart of accounts, fiscal calendar, journal entries, period closing and
+    reports of the Contabil accounting package. Money is always an integer in
+    minor units. Every route works on the current
     entity given by `CurrentEntityInterface`; `entity_id` is read from the query
     string only when that port returns null. Permissions are checked through
     `AuthorizerInterface` with the entity id. Until the host registers an
@@ -159,6 +161,7 @@ paths:
         '422': { $ref: '#/components/responses/Error' }
     patch:
       summary: Update an account (partial)
+      description: "Permission: contabil.chart.edit. Same as PUT."
       requestBody:
         required: true
         content:
@@ -305,8 +308,517 @@ paths:
                     items: { $ref: '#/components/schemas/Period' }
         '403': { $ref: '#/components/responses/Error' }
         '404': { $ref: '#/components/responses/Error' }
+  /fiscal-years/{id}/close:
+    post:
+      summary: Close a fiscal year
+      description: |
+        Permission: contabil.period.manage. Every period but the last must be
+        closed and no draft may remain in the year. Revenue and expense accounts
+        are zeroed by one entry dated the last day of the year, which moves the
+        net result to the result account; the last period and the year are then
+        closed. A year whose accounts already net to zero closes without an entry.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                result_account_id:
+                  type: integer
+                  description: Equity account for the result. Defaults to the one configured with `resultAccountCode`.
+      responses:
+        '200':
+          description: The closed year and the closing entry (null when none was needed).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/FiscalYear'
+                      - type: object
+                        properties:
+                          closing_entry:
+                            nullable: true
+                            allOf:
+                              - $ref: '#/components/schemas/Entry'
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /fiscal-years/{id}/reopen:
+    post:
+      summary: Reopen a closed fiscal year
+      description: |
+        Permission: contabil.period.manage. Reverses the closing entry and opens
+        the last period again. Refused while the next fiscal year is closed.
+        Emits `FiscalYearReopened`.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReasonInput' }
+      responses:
+        '200':
+          description: The reopened year.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/FiscalYear' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /periods/{id}/close:
+    post:
+      summary: Close a period
+      description: |
+        Permission: contabil.period.manage. Refused while drafts dated in the
+        period remain. A closed period accepts no entries. Emits `PeriodClosed`.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200':
+          description: The closed period.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Period' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /periods/{id}/reopen:
+    post:
+      summary: Reopen a closed period
+      description: |
+        Permission: contabil.period.manage. The reason is mandatory and travels
+        in the `PeriodReopened` event, which is the audit trail.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReasonInput' }
+      responses:
+        '200':
+          description: The reopened period.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Period' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /entries:
+    get:
+      summary: List entries, newest first
+      description: "Permission: contabil.entry.view. Page with `before_id` set to the id of the last entry received."
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - { name: status, in: query, schema: { type: string, enum: [DRAFT, POSTED, REVERSED] } }
+        - { name: from, in: query, description: Accrual date from, schema: { type: string, format: date } }
+        - { name: to, in: query, description: Accrual date to, schema: { type: string, format: date } }
+        - { name: source_type, in: query, schema: { type: string } }
+        - { name: source_id, in: query, schema: { type: string } }
+        - { name: account_id, in: query, description: Entries with a line on this account, schema: { type: integer } }
+        - { name: before_id, in: query, schema: { type: integer } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+      responses:
+        '200':
+          description: Entries with their lines.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Entry' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Create a draft, or post an entry right away
+      description: |
+        Permission: contabil.entry.create, plus contabil.entry.post when `post`
+        is true. Amounts are integers in minor units. Sending the same
+        `idempotency_key` again answers 200 with the stored entry and changes
+        nothing; reusing a key with different content is a 409.
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntryInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Entry' }
+        '201': { $ref: '#/components/responses/Entry' }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /entries/batch:
+    post:
+      summary: Create and post several entries atomically
+      description: |
+        Permission: contabil.entry.post. Up to 500 entries; if one fails none
+        is kept and the error names it. A retry with the same idempotency keys
+        answers 200 and duplicates nothing.
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entries]
+              properties:
+                entries:
+                  type: array
+                  items: { $ref: '#/components/schemas/EntryInput' }
+      responses:
+        '200':
+          description: Every entry already existed.
+        '201':
+          description: The posted entries, each with `created`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/Entry'
+                        - type: object
+                          properties:
+                            created: { type: boolean }
+        '403': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /entries/{id}:
+    get:
+      summary: Read an entry with its settlements
+      description: "Permission: contabil.entry.view"
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200':
+          description: The entry.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/Entry'
+                      - type: object
+                        properties:
+                          settlements:
+                            type: array
+                            items: { $ref: '#/components/schemas/Settlement' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+    put:
+      summary: Replace the content of a draft
+      description: "Permission: contabil.entry.create. A posted entry answers 409; reverse it instead."
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntryInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Entry' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    patch:
+      summary: Replace the content of a draft (same as PUT)
+      description: "Permission: contabil.entry.create. A posted entry answers 409; reverse it instead."
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EntryInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Entry' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+    delete:
+      summary: Delete a draft
+      description: "Permission: contabil.entry.create. A posted entry answers 409."
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '204': { description: Deleted. }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+  /entries/{id}/post:
+    post:
+      summary: Post a draft
+      description: |
+        Permission: contabil.entry.post. Checks that debits equal credits, that
+        accounts are active leaves of the entity and that the accrual date is in
+        an open period; assigns the next gap-free number and seals the entry in
+        the hash chain. Emits `EntryPosted`.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      responses:
+        '200': { $ref: '#/components/responses/Entry' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /entries/{id}/reverse:
+    post:
+      summary: Reverse a posted entry
+      description: |
+        Permission: contabil.entry.reverse. Posts the mirror entry and marks the
+        original `REVERSED`. Allowed once per entry; a reversal cannot be
+        reversed, and an entry with active settlements must have them reversed
+        first. To correct an entry, reverse it and post a new one.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 500 }
+                date:
+                  type: string
+                  format: date
+                  description: Accrual date of the reversal; defaults to the original's. Pass a later date when its period is closed.
+      responses:
+        '201':
+          description: Both entries.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      original: { $ref: '#/components/schemas/Entry' }
+                      reversal: { $ref: '#/components/schemas/Entry' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /entries/{id}/settle:
+    post:
+      summary: Record that this entry settles another
+      description: |
+        Permission: contabil.entry.post. `{id}` is the payment or collection;
+        `settled_entry_id` is the entry it pays. Partial settlements are allowed
+        up to the settled entry's total. An entry that moved cash by itself (it
+        has a cash date) cannot be settled. Emits `EntrySettled`.
+      parameters:
+        - $ref: '#/components/parameters/Id'
+        - $ref: '#/components/parameters/EntityId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settled_entry_id, amount]
+              properties:
+                settled_entry_id: { type: integer }
+                amount: { type: integer, minimum: 1, description: Minor units. }
+                date:
+                  type: string
+                  format: date
+                  description: Defaults to the cash date, then the accrual date, of the settlement entry.
+      responses:
+        '201':
+          description: The settlement.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Settlement' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '409': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+  /reports/ledger:
+    get:
+      summary: General ledger (raw)
+      description: |
+        Permission: contabil.reports.view; `format=csv|pdf` also needs
+        contabil.reports.export. One account (a group rolls up its descendants)
+        is paginated chronologically with a running balance in the account's own
+        nature. A code range (`from_code`, `to_code`) gives one section per leaf
+        account and is not paginated. Ignores the basis.
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - { name: account_id, in: query, schema: { type: integer } }
+        - { name: from_code, in: query, schema: { type: string } }
+        - { name: to_code, in: query, schema: { type: string } }
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: cursor, in: query, description: "`next_cursor` of the previous page.", schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 100 } }
+        - { $ref: '#/components/parameters/Format' }
+      responses:
+        '200': { $ref: '#/components/responses/Report' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '501': { $ref: '#/components/responses/Error' }
+  /reports/journal:
+    get:
+      summary: Journal (raw)
+      description: "Permission: contabil.reports.view. Entries by accrual date then number, with their lines."
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - { $ref: '#/components/parameters/From' }
+        - { $ref: '#/components/parameters/To' }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 500, default: 100 } }
+        - { $ref: '#/components/parameters/Format' }
+      responses:
+        '200': { $ref: '#/components/responses/Report' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '501': { $ref: '#/components/responses/Error' }
+  /reports/trial-balance:
+    get:
+      summary: Trial balance (raw)
+      description: |
+        Permission: contabil.reports.view. Opening, debits, credits and closing
+        per account; groups add up their children. Balances are signed with
+        debit positive. `divergences` lists accounts whose balance cache differs
+        from the ledger, or is null when `to` is not the last day of a period.
+        Never changes with the basis.
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { name: include_zero, in: query, schema: { type: boolean, default: false } }
+        - { $ref: '#/components/parameters/Format' }
+      responses:
+        '200': { $ref: '#/components/responses/Report' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '501': { $ref: '#/components/responses/Error' }
+  /reports/income-statement:
+    get:
+      summary: Income statement
+      description: |
+        Permission: contabil.reports.view. Built from the chart; honours the
+        basis. Every amount is the account's contribution to its section, so a
+        contra account is negative inside its parent.
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: '#/components/parameters/Basis' }
+        - { name: include_zero, in: query, schema: { type: boolean, default: false } }
+        - { $ref: '#/components/parameters/Format' }
+      responses:
+        '200': { $ref: '#/components/responses/Report' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '501': { $ref: '#/components/responses/Error' }
+  /reports/balance-sheet:
+    get:
+      summary: Balance sheet
+      description: |
+        Permission: contabil.reports.view. Accrual basis only; `basis=cash`
+        answers 501. Revenue and expense not yet closed to equity appear as
+        `current_result`, so assets equal liabilities plus equity.
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - { name: as_of, in: query, required: true, schema: { type: string, format: date } }
+        - { $ref: '#/components/parameters/Basis' }
+        - { name: include_zero, in: query, schema: { type: boolean, default: false } }
+        - { $ref: '#/components/parameters/Format' }
+      responses:
+        '200': { $ref: '#/components/responses/Report' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '501': { $ref: '#/components/responses/Error' }
+  /reports/by-source:
+    get:
+      summary: Statement by source (raw)
+      description: "Permission: contabil.reports.view. Every entry of one host document, reversals included."
+      parameters:
+        - $ref: '#/components/parameters/EntityId'
+        - { name: source_type, in: query, required: true, schema: { type: string } }
+        - { name: source_id, in: query, required: true, schema: { type: string } }
+        - { $ref: '#/components/parameters/Format' }
+      responses:
+        '200': { $ref: '#/components/responses/Report' }
+        '403': { $ref: '#/components/responses/Error' }
+        '422': { $ref: '#/components/responses/Error' }
+        '501': { $ref: '#/components/responses/Error' }
 components:
   parameters:
+    From:
+      name: from
+      in: query
+      required: false
+      description: First accrual date, inclusive.
+      schema: { type: string, format: date }
+    To:
+      name: to
+      in: query
+      required: false
+      description: Last accrual date, inclusive.
+      schema: { type: string, format: date }
+    Basis:
+      name: basis
+      in: query
+      required: false
+      description: "`accrual` or `cash`; defaults to the entity's `default_basis`."
+      schema: { type: string, enum: [accrual, cash] }
+    Format:
+      name: format
+      in: query
+      required: false
+      description: "`csv` and `pdf` also need contabil.reports.export; `pdf` answers 501 until a PdfRendererInterface is provided."
+      schema: { type: string, enum: [json, csv, pdf], default: json }
     Id:
       name: id
       in: path
@@ -323,6 +835,28 @@ components:
       in: query
       schema: { type: boolean, default: false }
   responses:
+    Entry:
+      description: The entry with its lines.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { $ref: '#/components/schemas/Entry' }
+    Report:
+      description: |
+        The report as `{"data": ...}` (amounts in minor units), or a CSV / PDF
+        download when `format` asks for one.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: { type: object }
+        text/csv:
+          schema: { type: string }
+        application/pdf:
+          schema: { type: string, format: binary }
     Account:
       description: An account.
       content:
@@ -440,3 +974,72 @@ components:
                   row: { type: integer, description: 1-based position of the data row. }
                   code: { type: string, nullable: true }
                   message: { type: string }
+    Entry:
+      type: object
+      properties:
+        id: { type: integer }
+        entity_id: { type: integer }
+        fiscal_year_id: { type: integer, nullable: true, description: Set when the entry is posted. }
+        number: { type: integer, nullable: true, description: Gap-free per entity and fiscal year; set when posted. }
+        accrual_date: { type: string, format: date }
+        cash_date: { type: string, format: date, nullable: true }
+        recorded_at: { type: string, example: '2026-03-02 10:00:00', nullable: true }
+        description: { type: string }
+        status: { type: string, enum: [DRAFT, POSTED, REVERSED] }
+        reversal_of_id: { type: integer, nullable: true }
+        reversal_reason: { type: string, nullable: true }
+        source_type: { type: string, nullable: true }
+        source_id: { type: string, nullable: true }
+        idempotency_key: { type: string, nullable: true }
+        user_id: { type: string, nullable: true }
+        hash: { type: string, nullable: true, description: SHA-256 sealing the content and the previous hash. }
+        previous_hash: { type: string, nullable: true }
+        total: { type: integer, description: "Sum of the debits, in minor units." }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/EntryLine' }
+    EntryLine:
+      type: object
+      properties:
+        id: { type: integer, nullable: true }
+        account_id: { type: integer }
+        side: { type: string, enum: [D, C] }
+        amount: { type: integer, minimum: 1, description: Minor units; the sign comes from the side. }
+        description: { type: string, nullable: true }
+        position: { type: integer }
+    EntryInput:
+      type: object
+      required: [accrual_date, description, lines]
+      properties:
+        accrual_date: { type: string, format: date, description: When the fact happened. }
+        cash_date: { type: string, format: date, nullable: true, description: "When money moved, if it moved with this entry." }
+        description: { type: string, maxLength: 500 }
+        source_type: { type: string, maxLength: 100, description: Opaque host document type; goes with source_id. }
+        source_id: { type: string, maxLength: 100 }
+        idempotency_key: { type: string, maxLength: 191, example: 'erp:invoice:1042:1' }
+        post: { type: boolean, default: false, description: Create only; posts the entry right away. }
+        lines:
+          type: array
+          minItems: 1
+          description: At least two to post; debits must equal credits.
+          items:
+            type: object
+            required: [account_id, side, amount]
+            properties:
+              account_id: { type: integer }
+              side: { type: string, enum: [D, C] }
+              amount: { type: integer, minimum: 1 }
+              description: { type: string, maxLength: 500 }
+    Settlement:
+      type: object
+      properties:
+        id: { type: integer }
+        settlement_entry_id: { type: integer }
+        settled_entry_id: { type: integer }
+        amount: { type: integer }
+        date: { type: string, format: date }
+    ReasonInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, maxLength: 500 }

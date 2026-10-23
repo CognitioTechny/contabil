@@ -7,6 +7,7 @@ namespace CognitioTechny\Contabil\Tests\Application\Chart;
 use CodeIgniter\Test\CIUnitTestCase;
 use CognitioTechny\Contabil\Application\Chart\ChartFormat;
 use CognitioTechny\Contabil\Application\Chart\ChartImportException;
+use CognitioTechny\Contabil\Domain\Chart\Account;
 use CognitioTechny\Contabil\Domain\Exception\ValidationException;
 use Tests\Support\ChartKit;
 
@@ -186,7 +187,7 @@ final class ChartImportExportTest extends CIUnitTestCase
 
     public function testMalformedInputIsAValidationError(): void
     {
-        foreach ([['{', 'json'], ['"text"', 'json'], ['[1]', 'json'], ['', 'csv'], ['a,b' . "\n" . '1,2', 'csv'], ['x', 'xml']] as [$content, $format]) {
+        foreach ([['{', 'json'], ['"text"', 'json'], ['[1]', 'json'], ['', 'csv'], ["a,b\n1,2", 'csv'], ['x', 'xml']] as [$content, $format]) {
             try {
                 ChartFormat::parse($content, $format);
                 $this->fail('Malformed ' . $format . ' accepted: ' . $content);
@@ -207,7 +208,7 @@ final class ChartImportExportTest extends CIUnitTestCase
      * The chart as comparable rows: ids differ between stores, so the parent is
      * named by its code.
      *
-     * @param list<\CognitioTechny\Contabil\Domain\Chart\Account> $accounts
+     * @param list<Account> $accounts
      *
      * @return list<array<string, mixed>>
      */
