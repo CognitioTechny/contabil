@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace CognitioTechny\Contabil\Application\Ports;
 
+use CognitioTechny\Contabil\Domain\Exception\NotFoundException;
+
 /**
  * Optional. Persists generated files (exports, attachments) outside the
  * database. Paths are relative, use "/" separators and never start with "/".
@@ -16,7 +18,7 @@ interface StorageInterface
     public function put(string $path, string $contents): void;
 
     /**
-     * @throws \CognitioTechny\Contabil\Domain\Exception\NotFoundException When the file does not exist.
+     * @throws NotFoundException When the file does not exist.
      */
     public function get(string $path): string;
 

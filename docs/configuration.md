@@ -12,6 +12,7 @@
 | `commandsEnabled` | `true` | Switch the `contabil:*` commands off. |
 | `defaultBasis` | `ACCRUAL` | Basis new entities start with (`ACCRUAL` or `CASH`). |
 | `dbGroup` | `null` | Database group for the package tables; `null` is the default group. |
+| `resultAccountCode` | `null` | Code of the equity account that receives the net result when a fiscal year is closed. `null` means the caller passes `result_account_id`. See [entries.md](entries.md#closing-a-fiscal-year). |
 | `accountCodeMask` | `null` | Format of account codes per level, for example `9.9.99.999` (`9` digit, `A` letter, `X` letter or digit). `null` accepts any code. See [chart-of-accounts.md](chart-of-accounts.md#code-mask). |
 
 Invalid values raise `ConfigurationException` when the settings are built.
@@ -38,3 +39,5 @@ public $psr4 = [
 | `contabil:status` | Lists each package migration as applied or pending. |
 | `contabil:create-entity --name <n> [--tax-id] [--currency] [--basis]` | Registers an accounted entity and prints its id. |
 | `contabil:seed-chart --model <generic\|professional-services> [--entity <id>]` | Seeds an entity with an optional chart; safe to repeat. |
+| `contabil:verify-integrity [--entity <id>]` | Walks the hash chain and the numbering of posted entries; exits non-zero when anything is off. |
+| `contabil:recalculate-balances [--entity <id>]` | Rebuilds the balance cache from the entry lines. |

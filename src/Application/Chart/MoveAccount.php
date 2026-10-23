@@ -43,7 +43,7 @@ final class MoveAccount
             $result = $account;
 
             foreach ($plan['moved'] as $moved) {
-                $saved = $this->accounts->save($moved);
+                $saved  = $this->accounts->save($moved);
                 $result = $saved->id === $account->id ? $saved : $result;
             }
 

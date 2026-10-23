@@ -13,16 +13,16 @@ Money columns are `BIGINT` in minor units. `user_id`, `source_type` and `source_
 | `acc_entries` | Journal entry header with `accrual_date`, `cash_date`, `idempotency_key`, `hash`, `previous_hash`. |
 | `acc_entry_lines` | Lines: `amount` > 0 plus `side` `D`/`C`; the General Ledger is a query over this table. |
 | `acc_settlements` | Links a settlement entry to the entry it settles (partial settlements allowed). |
-| `acc_balances` | Account × period cache; recomputable, never the source of truth. |
+| `acc_balances` | Account × period cache (opening, debits, credits, closing; debit positive); recomputable with `contabil:recalculate-balances`, never the source of truth. |
 | `acc_posting_rules` | Optional map from a host source event to a debit/credit account pair. |
 | `acc_sequences` | Gap-free entry counter per entity and fiscal year, locked inside the posting transaction. |
 | `acc_schema_version` | One row per applied schema version. |
 
-`acc_entries` also carries `fiscal_year_id` (nullable until posting), so the entry number is unique per `(entity_id, fiscal_year_id, number)`, and `reversal_of_id` / `reversal_reason` for reversals.
+`acc_entries` also carries `fiscal_year_id` and `number` (both null until posting, so the number is unique per `(entity_id, fiscal_year_id, number)`), `chain_position` (the entry's place in the entity's hash chain, set when posted, unique per entity), and `reversal_of_id` / `reversal_reason` for reversals.
 
 ## Indexes
 
-- `acc_entries`: `(entity_id, accrual_date)`, `(entity_id, cash_date)`, `(source_type, source_id)`, UNIQUE `(entity_id, idempotency_key)`, UNIQUE `(entity_id, fiscal_year_id, number)`.
+- `acc_entries`: `(entity_id, accrual_date)`, `(entity_id, cash_date)`, `(source_type, source_id)`, UNIQUE `(entity_id, idempotency_key)`, UNIQUE `(entity_id, fiscal_year_id, number)`, UNIQUE `(entity_id, chain_position)`.
 - `acc_entry_lines`: `(account_id, entry_id)`, `(entry_id, position)`.
 - `acc_accounts`: UNIQUE `(entity_id, code)`.
 

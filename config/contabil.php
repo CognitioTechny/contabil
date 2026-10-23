@@ -13,7 +13,7 @@ use CognitioTechny\Contabil\Infrastructure\CodeIgniter\Config\Contabil as BaseCo
  * Uncomment and change only what differs from the defaults; every value can
  * also be set from `.env`, for example `contabil.tablePrefix = 'ledger_'`.
  */
-class Contabil extends BaseContabil
+class contabil extends BaseContabil
 {
     // public string $tablePrefix = 'acc_';
     // public string $currency = 'USD';
@@ -24,4 +24,5 @@ class Contabil extends BaseContabil
     // public string $defaultBasis = 'ACCRUAL'; // or 'CASH'
     // public ?string $dbGroup = null;
     // public ?string $accountCodeMask = null; // for example '9.9.99.999'
+    // public ?string $resultAccountCode = null; // equity account that receives the year result, for example '3.3.01'
 }

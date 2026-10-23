@@ -11,7 +11,9 @@ use CognitioTechny\Contabil\Application\Ports\AuthorizerInterface;
  */
 final class FakeAuthorizer implements AuthorizerInterface
 {
-    /** @var list<array{string, int|string|null}> */
+    /**
+     * @var list<array{string, int|string|null}>
+     */
     public array $checks = [];
 
     /**

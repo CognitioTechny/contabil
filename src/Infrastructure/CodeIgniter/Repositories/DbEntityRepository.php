@@ -23,6 +23,13 @@ final class DbEntityRepository implements EntityRepositoryInterface
         return $this->db->table($this->tables->name('entities'))->where('id', $id)->countAllResults() > 0;
     }
 
+    public function defaultBasis(int $id): ?string
+    {
+        $row = $this->db->table($this->tables->name('entities'))->select('default_basis')->where('id', $id)->get()->getRowArray();
+
+        return $row === null ? null : (string) $row['default_basis'];
+    }
+
     public function create(string $name, ?string $taxId, string $currency, string $basis): int
     {
         $now = $this->clock->now()->format('Y-m-d H:i:s');

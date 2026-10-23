@@ -25,11 +25,13 @@ final class MigrationTest extends DatabaseTestCase
         $runner->setNamespace($this->namespace);
 
         $runner->latest();
+
         foreach ($tables as $table) {
             $this->assertTrue($this->db->tableExists($table), $table . ' missing after up');
         }
 
         $runner->regress(0);
+
         foreach ($tables as $table) {
             $this->assertFalse($this->db->tableExists($table), $table . ' still present after down');
         }
@@ -59,6 +61,7 @@ final class MigrationTest extends DatabaseTestCase
 
         try {
             $tables = (new TableNames('ledger_'))->all();
+
             foreach ($tables as $table) {
                 $this->assertTrue($this->db->tableExists($table), $table . ' missing');
             }

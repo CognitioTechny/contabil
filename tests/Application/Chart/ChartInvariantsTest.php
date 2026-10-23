@@ -371,10 +371,10 @@ final class ChartInvariantsTest extends CIUnitTestCase
 
     public function testMovedSubtreeMustStillFitTheMask(): void
     {
-        $kit  = new ChartKit('9.9.99');
-        $a    = $kit->create->execute(1, '1', 'A', 'asset');
-        $b    = $kit->create->execute(1, '2', 'B', 'asset');
-        $c    = $kit->create->execute(1, '2.1', 'C', null, $b->id);
+        $kit = new ChartKit('9.9.99');
+        $a   = $kit->create->execute(1, '1', 'A', 'asset');
+        $b   = $kit->create->execute(1, '2', 'B', 'asset');
+        $c   = $kit->create->execute(1, '2.1', 'C', null, $b->id);
         $kit->create->execute(1, '2.1.01', 'D', null, $c->id);
 
         // Under A, C would be level 2 and D level 3: the codes still fit.

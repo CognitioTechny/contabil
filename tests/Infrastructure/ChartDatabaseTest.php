@@ -156,7 +156,7 @@ final class ChartDatabaseTest extends DatabaseTestCase
     private function insertLine(int $accountId): void
     {
         $this->db->table('acc_entries')->insert([
-            'entity_id' => $this->entity, 'accrual_date' => '2026-01-10', 'recorded_at' => '2026-01-10 10:00:00',
+            'entity_id'   => $this->entity, 'accrual_date' => '2026-01-10', 'recorded_at' => '2026-01-10 10:00:00',
             'description' => 'x', 'status' => 'DRAFT',
         ]);
         $entryId = (int) $this->db->insertID();

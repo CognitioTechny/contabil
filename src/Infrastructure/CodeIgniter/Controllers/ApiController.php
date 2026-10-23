@@ -57,6 +57,16 @@ abstract class ApiController extends Controller
         }
     }
 
+    /**
+     * Demands one more permission inside an action that already passed its main check.
+     */
+    protected function also(string $permission, int $entityId): void
+    {
+        if (! $this->authorizer()->can($permission, $entityId)) {
+            throw new AccessDeniedException(sprintf('The permission "%s" is required.', $permission));
+        }
+    }
+
     protected function useCases(): UseCases
     {
         return service('contabil');

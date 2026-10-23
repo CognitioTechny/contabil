@@ -61,6 +61,12 @@ class Contabil extends BaseConfig
      */
     public ?string $accountCodeMask = null;
 
+    /**
+     * Code of the equity account that receives the net result when a fiscal
+     * year is closed. Null means the caller passes `result_account_id`.
+     */
+    public ?string $resultAccountCode = null;
+
     public function settings(): Settings
     {
         return new Settings(
@@ -73,6 +79,7 @@ class Contabil extends BaseConfig
             $this->defaultBasis,
             $this->dbGroup,
             $this->accountCodeMask,
+            $this->resultAccountCode,
         );
     }
 }

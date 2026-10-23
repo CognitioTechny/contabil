@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace CognitioTechny\Contabil\Tests\Application;
 
 use CodeIgniter\Test\CIUnitTestCase;
-use PHPUnit\Framework\Attributes\DataProvider;
 use CognitioTechny\Contabil\Application\Configuration\Settings;
 use CognitioTechny\Contabil\Domain\Exception\ConfigurationException;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * @internal
@@ -44,7 +44,7 @@ final class SettingsTest extends CIUnitTestCase
     /**
      * @param array<string, mixed> $values
      */
-    #[DataProvider('invalidProvider')]
+    #[DataProvider('provideInvalidValuesAreRejected')]
     public function testInvalidValuesAreRejected(array $values): void
     {
         $this->expectException(ConfigurationException::class);
@@ -55,14 +55,20 @@ final class SettingsTest extends CIUnitTestCase
     /**
      * @return iterable<string, array{array<string, mixed>}>
      */
-    public static function invalidProvider(): iterable
+    public static function provideInvalidValuesAreRejected(): iterable
     {
         yield 'prefix with a dash' => [['tablePrefix' => 'a-b_']];
+
         yield 'prefix starting with a digit' => [['tablePrefix' => '1acc_']];
+
         yield 'prefix too long' => [['tablePrefix' => str_repeat('a', 17)]];
+
         yield 'lowercase currency' => [['currency' => 'usd']];
+
         yield 'unknown basis' => [['defaultBasis' => 'HYBRID']];
+
         yield 'empty route' => [['apiRoute' => '/']];
+
         yield 'malformed code mask' => [['accountCodeMask' => '9.Z']];
     }
 

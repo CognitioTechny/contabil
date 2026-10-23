@@ -56,6 +56,23 @@ abstract class ContabilCommand extends BaseCommand
         return null;
     }
 
+    /**
+     * The entity given with `--entity`, or every entity of the package.
+     *
+     * @return list<int>
+     */
+    protected function entityIds(?string $option): array
+    {
+        if ($option !== null) {
+            return [(int) $option];
+        }
+
+        $settings = service('contabilSettings');
+        $rows     = Database::connect($settings->dbGroup)->table($settings->tables->name('entities'))->select('id')->orderBy('id', 'ASC')->get()->getResultArray();
+
+        return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
     protected function commandsEnabled(): bool
     {
         return config(Contabil::class)->commandsEnabled;

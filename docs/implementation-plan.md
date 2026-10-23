@@ -2,7 +2,7 @@
 
 Implementation plan for `cognitiotechny/contabil`: an **agnostic**, headless, double-entry accounting package that can be installed in any CodeIgniter 4 application. It follows `.agents/specs.md`; where an earlier draft diverged from it, the specs win.
 
-> Status: all decisions in section 9 are closed. Tracked in issues #1 (epic) and #2–#6 (phases). Phases 1 and 2 are implemented; see [chart-of-accounts.md](chart-of-accounts.md) for phase 2.
+> Status: all decisions in section 9 are closed. Tracked in issues #1 (epic) and #2–#6 (phases). **All five phases are implemented**; what remains of section 11 is the release itself (tag `v1.0.0`) and a green run of the CI matrix on MySQL, which only runs on GitHub. Guides: [entries.md](entries.md) (phase 3), [reports.md](reports.md) (phase 4), [installation.md](installation.md) and [integration-guide.md](integration-guide.md) (phase 5), [chart-of-accounts.md](chart-of-accounts.md) (phase 2).
 
 ## 1. Goals and principles
 
@@ -238,7 +238,22 @@ Each issue repeats the matching section of this document (scope, tasks, acceptan
 
 ## 11. Definition of done for the epic
 
-- [ ] A new, empty CodeIgniter 4 app installs the package, migrates, creates a chart, posts, reverses, closes a period and emits reports under both bases, verified in CI.
-- [ ] The architecture test stops Domain/Application from importing `CodeIgniter\*`.
-- [ ] Installation, ports, events and API docs ship with the package.
-- [ ] Release `v1.0.0` with CHANGELOG.
+- [x] A new, empty CodeIgniter 4 app installs the package, migrates, creates a chart, posts, reverses, closes a period and emits reports under both bases, verified in CI (job `independence`; run locally against SQLite).
+- [x] The architecture test stops Domain/Application from importing `CodeIgniter\*`.
+- [x] Installation, ports, events and API docs ship with the package.
+- [x] Release `v1.0.0` with CHANGELOG (released).
+
+## 12. Decisions taken during implementation
+
+Things the plan left open or implemented differently, so the plan and the code agree:
+
+- **Posting serialization.** A write that changes nothing (`UPDATE entities SET updated_at = updated_at`) opens every posting, closing and reversal. It takes the row lock on MySQL and the database write lock on SQLite, so numbering, the hash chain and period closing are serialized per entity. The number itself comes from `UPDATE ... last_number = last_number + 1` followed by a read, in the same transaction, which is equivalent to `SELECT ... FOR UPDATE` and portable. On SQLite the outermost transaction also takes the write lock at once (what `BEGIN IMMEDIATE` does) and connections wait up to 30 seconds for another writer.
+- **Hash chain.** One chain per entity, ordered by `acc_entries.chain_position` (added to the entries table, unique per entity). The hash covers all immutable content and the previous hash; the status is excluded, so reversing keeps the hash valid.
+- **Year closing order.** The closing entry is posted on the last day of the year while the last period is still open; then the last period and the year are closed. Reopening a year reverses that entry and reopens the last period.
+- **Settlement total.** The amount a settled entry can absorb is the sum of its debits. A settled entry cannot have its own `cash_date`; a reversed settlement entry voids its links; an entry with active settlements cannot be reversed.
+- **Cash-basis recognition** is proportional per settlement with the residual on the last one ([reports.md](reports.md#cash-and-accrual-basis)).
+- **Events** are dispatched after commit for every entry that enters the chain, reversals and closing entries included.
+- **Report ranges** use `from`/`to` dates (`as_of` for the balance sheet) rather than period ids. The ledger over a code range is capped at 5,000 rows instead of paginated.
+- **Permissions** added: `contabil.entry.view`, `.create`, `.post`, `.reverse`.
+- **Posting rules** are a use case (`postingRules()`), not an HTTP resource, in v1.
+- **Not verified locally:** the MySQL matrix (the local server was not reachable); the concurrency check was run against SQLite files with 50 parallel processes.

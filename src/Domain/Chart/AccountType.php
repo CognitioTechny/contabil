@@ -21,8 +21,8 @@ enum AccountType: string
     public function defaultNature(): Nature
     {
         return match ($this) {
-            self::Asset, self::Expense                      => Nature::Debit,
-            self::Liability, self::Equity, self::Revenue    => Nature::Credit,
+            self::Asset, self::Expense                   => Nature::Debit,
+            self::Liability, self::Equity, self::Revenue => Nature::Credit,
         };
     }
 
