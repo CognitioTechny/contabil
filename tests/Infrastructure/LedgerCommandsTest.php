@@ -75,7 +75,7 @@ final class LedgerCommandsTest extends DbLedgerTestCase
 
     public function testOpeningBalancesFromCsvAndJson(): void
     {
-        $dir = sys_get_temp_dir() . '/contabil-opening-' . bin2hex(random_bytes(4));
+        $dir = str_replace('\\', '/', sys_get_temp_dir()) . '/contabil-opening-' . bin2hex(random_bytes(4));
         mkdir($dir);
         file_put_contents($dir . '/balances.csv', "\xEF\xBB\xBFaccount_code,side,amount\n1.1.01,D,1500.00\n2.1.01,C,250.5\n\n");
         file_put_contents($dir . '/balances.json', json_encode([
