@@ -6,6 +6,9 @@ namespace CognitioTechny\Contabil\Infrastructure\CodeIgniter\Commands;
 
 use CodeIgniter\CLI\BaseCommand;
 use CodeIgniter\Database\MigrationRunner;
+use CognitioTechny\Contabil\Domain\Calendar\FiscalYear;
+use CognitioTechny\Contabil\Domain\Exception\NotFoundException;
+use CognitioTechny\Contabil\Domain\Exception\ValidationException;
 use CognitioTechny\Contabil\Infrastructure\CodeIgniter\Config\Contabil;
 use Config\Database;
 use Config\Migrations;
@@ -71,6 +74,65 @@ abstract class ContabilCommand extends BaseCommand
         $rows     = Database::connect($settings->dbGroup)->table($settings->tables->name('entities'))->select('id')->orderBy('id', 'ASC')->get()->getResultArray();
 
         return array_map(static fn (array $row): int => (int) $row['id'], $rows);
+    }
+
+    /**
+     * The entity given with `--entity`, or the host's current entity.
+     *
+     * @param array<int|string, mixed> $params
+     *
+     * @throws ValidationException Neither names a positive integer.
+     */
+    protected function requiredEntity(array $params): int
+    {
+        $entity = $this->option($params, 'entity') ?? service('contabilCurrentEntity')->id();
+
+        if ($entity === null || ! ctype_digit((string) $entity) || (int) $entity < 1) {
+            throw new ValidationException('Pass the entity with --entity <id> (a positive integer), or configure defaultEntityId.');
+        }
+
+        return (int) $entity;
+    }
+
+    /**
+     * A fiscal year of the entity by label or id.
+     *
+     * @throws NotFoundException
+     */
+    protected function fiscalYear(int $entityId, string $reference): FiscalYear
+    {
+        $years = service('contabil')->listFiscalYears()->execute($entityId);
+
+        // A label wins over an id, so "2026" is the year labelled 2026.
+        foreach ($years as $year) {
+            if ($year->label === $reference) {
+                return $year;
+            }
+        }
+
+        foreach ($years as $year) {
+            if (ctype_digit($reference) && $year->id === (int) $reference) {
+                return $year;
+            }
+        }
+
+        throw new NotFoundException(sprintf('Fiscal year "%s" does not exist in entity %d.', $reference, $entityId));
+    }
+
+    /**
+     * The id of an active account of the entity by code.
+     *
+     * @throws ValidationException
+     */
+    protected function accountId(int $entityId, string $code): int
+    {
+        foreach (service('contabil')->listAccounts()->execute($entityId) as $account) {
+            if ($account->code === $code) {
+                return (int) $account->id;
+            }
+        }
+
+        throw new ValidationException(sprintf('The account %s does not exist or is inactive.', $code));
     }
 
     protected function commandsEnabled(): bool

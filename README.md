@@ -2,7 +2,7 @@
 
 Agnostic, headless, double-entry accounting package for CodeIgniter 4 applications (PHP 8.2+, CodeIgniter 4.7+). MIT licensed.
 
-It gives a host application a chart of accounts, a fiscal calendar, real double-entry journal entries (immutable once posted, corrected by reversal), period and year closing, and the books and statements: General Ledger, Journal, Trial Balance, Income Statement (cash or accrual basis) and Balance Sheet. Money is an integer in minor units. It has no views and no dependency on the host: the host plugs in through ports and events.
+It gives a host application a chart of accounts, a fiscal calendar, real double-entry journal entries (immutable once posted, corrected by reversal), opening balances, the opening of each new fiscal year, period and year closing, and the books and statements: General Ledger, Journal, Trial Balance, Income Statement (cash or accrual basis) and Balance Sheet. Money is an integer in minor units. It has no views and no dependency on the host: the host plugs in through ports and events.
 
 ```bash
 composer require cognitiotechny/contabil

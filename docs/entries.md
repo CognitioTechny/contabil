@@ -84,6 +84,41 @@ Creating a fiscal year generates 12 monthly periods ([chart-of-accounts.md](char
 - `POST /periods/{id}/close`: refused while drafts are dated in the period. A closed period accepts no entries.
 - `POST /periods/{id}/reopen`: needs the `contabil.period.manage` permission and a `reason`, and emits `PeriodReopened`, which is the audit record. A period of a closed year cannot be reopened before the year is.
 
+## Opening the books (opening balances)
+
+An entity that already existed before it started using the package brings its balances in with one **opening entry** in its first fiscal year. `POST /fiscal-years/{id}/opening-balances`, the `OpeningBalances` use case (`service('contabil')->openingBalances()`) or `php spark contabil:opening-balances --file balances.csv`:
+
+```json
+{
+  "balances": [
+    {"account_code": "1.1.01", "side": "D", "amount": 1500000},
+    {"account_code": "1.1.02", "side": "D", "amount": 320000},
+    {"account_id": 12,         "side": "C", "amount": 410000}
+  ],
+  "balancing_account_id": 31
+}
+```
+
+1. The year must be the entity's **first** fiscal year, still open, with its first period open. Later years need no opening entry (see below).
+2. Each balance names an asset, liability or equity leaf account (`account_id` or `account_code`), once. Revenue and expense accounts start a year at zero, so they take no opening balance. Zero amounts are skipped.
+3. Debits must equal credits. Otherwise the request is a 422 that states the difference, unless `balancing_account_id` names an active equity account that takes it (a suspense or "opening adjustments" account for the accountant to clear).
+4. The balances are posted as one entry dated the **first day of the year**, `source_type` `contabil.opening-balances` and `source_id` the year id. It is an ordinary posted entry: numbered, in the hash chain and the balance cache, immutable. Being a movement of the first day, it shows in the trial balance of the first month as debits and credits, and as the opening column from the second month on.
+5. Posted once. A second call is a 409 unless `"replace": true`, which reverses the entry in force and posts the new balances in the same transaction. Reversing the opening entry with `POST /entries/{id}/reverse` also lets you post it again.
+
+`GET /fiscal-years/{id}/opening-balances` returns the opening entry in force (`null` when none). Posting needs `contabil.period.manage` and `contabil.entry.post`. Events: `EntryPosted` and `OpeningBalancesRecorded` (after `EntryPosted` and `EntryReversed` of the replaced entry, when replacing).
+
+The CSV file of `contabil:opening-balances` has the header `account_code,side,amount` with the amount as a decimal (`1500.00`); a `.json` file holds the same list as the API, amounts in minor units.
+
+## Opening a fiscal year
+
+`POST /fiscal-years/{id}/open-next` (body: optional `label`) creates the year that starts the day after year `{id}` ends, with its twelve monthly periods, and emits `FiscalYearOpened`. It is a 409 when that year already exists or would overlap another.
+
+- The previous year does **not** need to be closed first. Usually the next year opens on its first day, takes entries, and the previous year is closed weeks later, once its adjustments are in.
+- **No entry is posted.** Balances in the ledger are cumulative, so asset, liability and equity accounts start the new year with their closing balance of the previous one, and every report reads it from there (the opening column of the trial balance, the opening balance of the general ledger). Revenue and expense accounts start from zero once the previous year is closed, because the closing entry moves their result to equity.
+- The very first year of an entity is created with `POST /fiscal-years` (`start_date`), and its opening balances posted as above.
+
+From the command line, `php spark contabil:open-year --start 2026-01-01` creates the first year and `php spark contabil:open-year` opens the year after the latest one.
+
 ## Closing a fiscal year
 
 `POST /fiscal-years/{id}/close` (body: optional `result_account_id`):
@@ -91,6 +126,8 @@ Creating a fiscal year generates 12 monthly periods ([chart-of-accounts.md](char
 1. Every period except the last must be closed, and no draft may be dated in the year.
 2. The revenue and expense accounts are zeroed by one entry dated the last day of the year; the net result goes to the **result account**, an active equity account that takes entries. Set `resultAccountCode` in the configuration or pass `result_account_id`. A profit credits it, a loss debits it.
 3. The last period and the year are closed. A year whose accounts already net to zero closes without an entry.
+
+From the command line: `php spark contabil:close-year --year 2026 --result-account 3.2.01 [--close-periods] [--open-next]`; `--close-periods` closes the open periods of the year first and `--open-next` opens the next year afterwards when it does not exist yet.
 
 `POST /fiscal-years/{id}/reopen` (body: `reason`) reverses the closing entry, opens the last period and the year again. It is refused while the **next** fiscal year is closed, because that year's opening balances depend on this one. The other periods stay closed; reopen them one by one if needed.
 
@@ -112,6 +149,6 @@ rebuilds it from the lines; the result is identical to the incremental one (a te
 | `contabil.entry.create` | create, change and delete drafts |
 | `contabil.entry.post` | post, create-and-post, batches, settlements |
 | `contabil.entry.reverse` | reverse |
-| `contabil.period.manage` | create fiscal years, close and reopen periods and years |
+| `contabil.period.manage` | create and open fiscal years, close and reopen periods and years, post opening balances (with `contabil.entry.post`) |
 
 Creating an entry with `"post": true` needs both `contabil.entry.create` and `contabil.entry.post`.

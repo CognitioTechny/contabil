@@ -37,6 +37,9 @@ if ($contabil->routesEnabled) {
             $routes->get('fiscal-years/(:num)/periods', 'FiscalYearsController::periods/$1');
             $routes->post('fiscal-years/(:num)/close', 'FiscalYearsController::close/$1');
             $routes->post('fiscal-years/(:num)/reopen', 'FiscalYearsController::reopen/$1');
+            $routes->post('fiscal-years/(:num)/open-next', 'FiscalYearsController::openNext/$1');
+            $routes->get('fiscal-years/(:num)/opening-balances', 'FiscalYearsController::openingBalances/$1');
+            $routes->post('fiscal-years/(:num)/opening-balances', 'FiscalYearsController::recordOpeningBalances/$1');
 
             $routes->post('periods/(:num)/close', 'PeriodsController::close/$1');
             $routes->post('periods/(:num)/reopen', 'PeriodsController::reopen/$1');

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0 - 2026-10-24
+
+### Added
+
+- Opening of the books: the `OpeningBalances` use case posts the balances an entity brings from before it used the package as one entry dated the first day of its first fiscal year (`source_type` `contabil.opening-balances`), with an optional equity balancing account, once per year unless replaced; `GET|POST /fiscal-years/{id}/opening-balances`; `contabil:opening-balances` from CSV or JSON; the `OpeningBalancesRecorded` event.
+- Opening of a fiscal year: `ManageFiscalYear::openNext()` creates the year after another with its periods, without posting (balances carry over from the ledger); `POST /fiscal-years/{id}/open-next`; the `FiscalYearOpened` event.
+- The commands `contabil:open-year` (first year with `--start`, or the next one) and `contabil:close-year` (with `--close-periods` and `--open-next`).
+
 ## 1.0.0 - 2026-10-23
 
 ### Added

@@ -41,3 +41,6 @@ public $psr4 = [
 | `contabil:seed-chart --model <generic\|professional-services> [--entity <id>]` | Seeds an entity with an optional chart; safe to repeat. |
 | `contabil:verify-integrity [--entity <id>]` | Walks the hash chain and the numbering of posted entries; exits non-zero when anything is off. |
 | `contabil:recalculate-balances [--entity <id>]` | Rebuilds the balance cache from the entry lines. |
+| `contabil:open-year [--entity <id>] [--start YYYY-MM-DD] [--label <l>]` | Creates the first fiscal year of an entity (`--start`) or opens the year after its latest. |
+| `contabil:opening-balances --file <path> [--entity <id>] [--year <label\|id>] [--balancing-account <code>] [--replace]` | Posts the opening balances of the first fiscal year from a CSV (`account_code,side,amount`, decimal amounts) or JSON file. |
+| `contabil:close-year [--entity <id>] [--year <label\|id>] [--result-account <code>] [--close-periods] [--open-next]` | Closes a fiscal year (the earliest open one by default), optionally closing its periods first and opening the next year. |

@@ -26,7 +26,7 @@ Violations of a rule about the data itself raise `ValidationException` (422); vi
 
 - Creating a year takes a start date that is the **first day of a month** and generates 12 monthly periods, without gaps, ending the last day of the 12th month. The label defaults to `2026`, or `2026/2027` when the year does not start in January.
 - Years of one entity never overlap and labels are unique (`ConflictException`). Different entities have independent calendars.
-- Period states: `OPEN` → `CLOSED` → `OPEN` (reopen) or `LOCKED` (final). A year closes only when no period is `OPEN`, and a closed year can be reopened. These transitions live in the domain (`Period`, `FiscalYear`); the use cases that apply them (`ClosePeriod`, `ReopenPeriod`, `CloseFiscalYear`) arrive with the entry engine in phase 3.
+- Period states: `OPEN` → `CLOSED` → `OPEN` (reopen) or `LOCKED` (final). A year closes only when no period is `OPEN`, and a closed year can be reopened. These transitions live in the domain (`Period`, `FiscalYear`); the use cases that apply them (`ManagePeriod`, `ManageFiscalYear`, with the opening of the next year and the opening balances) are described in [entries.md](entries.md).
 
 ## Entities
 
