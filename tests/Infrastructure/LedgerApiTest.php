@@ -340,6 +340,9 @@ final class LedgerApiTest extends DbLedgerTestCase
         [, $range] = $this->send('get', 'reports/ledger?from_code=1.1.01&to_code=4.1.01');
         $this->assertCount(2, $range['data']['sections']);
 
+        [, $allLedger] = $this->send('get', 'reports/ledger?from=2026-03-01&to=2026-03-31');
+        $this->assertCount(2, $allLedger['data']['sections']);
+
         [, $journal] = $this->send('get', 'reports/journal');
         $this->assertCount(1, $journal['data']['entries']);
 
@@ -361,7 +364,7 @@ final class LedgerApiTest extends DbLedgerTestCase
         $this->assertSame(422, $this->send('get', 'reports/trial-balance')[0], 'dates are required');
         $this->assertSame(422, $this->send('get', 'reports/income-statement?from=2026-03-01&to=2026-03-31&basis=weird')[0]);
         $this->assertSame(501, $this->send('get', 'reports/balance-sheet?as_of=2026-03-31&basis=cash')[0]);
-        $this->assertSame(422, $this->send('get', 'reports/ledger')[0]);
+        $this->assertSame(422, $this->send('get', 'reports/ledger?from_code=5.1.01&to_code=1.1.01')[0]);
         $this->assertSame(422, $this->send('get', 'reports/journal?cursor=garbage')[0]);
         $this->assertSame(422, $this->send('get', 'reports/trial-balance?from=2026-03-01&to=2026-03-31&format=xml')[0]);
     }

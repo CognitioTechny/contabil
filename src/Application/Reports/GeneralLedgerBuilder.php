@@ -54,12 +54,12 @@ final class GeneralLedgerBuilder
         return new GeneralLedger($entityId, $from, $to, [$section], $next);
     }
 
-    public function forRange(int $entityId, string $fromCode, string $toCode, ?DateTimeImmutable $from, ?DateTimeImmutable $to): GeneralLedger
+    public function forRange(int $entityId, ?string $fromCode = null, ?string $toCode = null, ?DateTimeImmutable $from = null, ?DateTimeImmutable $to = null): GeneralLedger
     {
         $this->entities->assertExists($entityId);
         $this->assertRange($from, $to);
 
-        if (strnatcmp($fromCode, $toCode) > 0) {
+        if ($fromCode !== null && $toCode !== null && strnatcmp($fromCode, $toCode) > 0) {
             throw new ValidationException('The first account code must not come after the last.');
         }
 
@@ -68,7 +68,9 @@ final class GeneralLedgerBuilder
         $tree     = new ChartTree($this->accounts->all($entityId));
 
         foreach ($tree->walk() as $account) {
-            if (! $account->acceptsEntries || strnatcmp($account->code, $fromCode) < 0 || strnatcmp($account->code, $toCode) > 0) {
+            if (! $account->acceptsEntries
+                || ($fromCode !== null && strnatcmp($account->code, $fromCode) < 0)
+                || ($toCode !== null && strnatcmp($account->code, $toCode) > 0)) {
                 continue;
             }
 

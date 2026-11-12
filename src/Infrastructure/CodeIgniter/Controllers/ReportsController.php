@@ -27,17 +27,12 @@ class ReportsController extends ApiController
             $builder = $this->useCases()->generalLedger();
             $from    = $this->date('from');
             $to      = $this->date('to');
+            $account = $this->param('account_id');
 
-            if ($this->param('from_code') !== null || $this->param('to_code') !== null) {
-                $report = $builder->forRange($entity, (string) $this->param('from_code'), (string) $this->param('to_code'), $from, $to);
-            } else {
-                $account = $this->param('account_id');
-
-                if ($account === null) {
-                    throw new ValidationException('Pass account_id, or from_code and to_code.');
-                }
-
+            if ($account !== null) {
                 $report = $builder->forAccount($entity, (int) $account, $from, $to, $this->param('cursor'), (int) ($this->param('limit') ?? 100));
+            } else {
+                $report = $builder->forRange($entity, $this->param('from_code'), $this->param('to_code'), $from, $to);
             }
 
             return $this->deliver($report, $entity);
