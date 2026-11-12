@@ -301,6 +301,10 @@ final class ReportsTest extends CIUnitTestCase
         $range = $this->kit->generalLedger->forRange(LedgerKit::ENTITY, '1.1.01', '1.1.02', $this->date('2026-03-01'), $this->date('2026-03-31'));
 
         $this->assertSame(['1.1.01', '1.1.02'], array_map(static fn (array $s): string => $s['account']['code'], $range->sections));
+
+        $all = $this->kit->generalLedger->forRange(LedgerKit::ENTITY, null, null, $this->date('2026-03-01'), $this->date('2026-03-31'));
+
+        $this->assertSame(['1.1.01', '1.1.02', '2.1.01', '3.1.01', '4.1.01', '5.1.01', '5.1.02'], array_map(static fn (array $s): string => $s['account']['code'], $all->sections));
     }
 
     public function testJournalListsEntriesChronologicallyWithTheirLines(): void

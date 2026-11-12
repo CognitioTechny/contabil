@@ -791,10 +791,11 @@ paths:
       summary: General ledger (raw)
       description: |
         Permission: contabil.reports.view; `format=csv|pdf` also needs
-        contabil.reports.export. One account (a group rolls up its descendants)
-        is paginated chronologically with a running balance in the account's own
-        nature. A code range (`from_code`, `to_code`) gives one section per leaf
-        account and is not paginated. Ignores the basis.
+        contabil.reports.export. One account (`account_id`; a group rolls up its
+        descendants) is paginated chronologically with a running balance in the
+        account's own nature. Without `account_id`, returns one section per leaf
+        account with movement or opening balance (optionally bounded by
+        `from_code` and/or `to_code`) and is not paginated. Ignores the basis.
       parameters:
         - $ref: '#/components/parameters/EntityId'
         - { name: account_id, in: query, schema: { type: integer } }
