@@ -218,12 +218,12 @@ final class EntityIsolationDatabaseTest extends DbLedgerTestCase
     {
         $this->posted('2026-03-05', 'Alpha sale', [['1.1.02', 'D', 700], ['4.1.01', 'C', 700]]);
 
-        $before = $this->db->table('acc_balances')->whereIn('account_id', array_values($this->otherIds))->orderBy('id')->get()->getResultArray();
+        $before = $this->db->table('acc_balances')->whereIn('account_id', array_values($this->otherIds))->orderBy('account_id')->orderBy('period_id')->get()->getResultArray();
         $this->assertNotEmpty($before);
 
         $this->uc()->recalculateBalances()->execute($this->entity);
 
-        $after = $this->db->table('acc_balances')->whereIn('account_id', array_values($this->otherIds))->orderBy('id')->get()->getResultArray();
+        $after = $this->db->table('acc_balances')->whereIn('account_id', array_values($this->otherIds))->orderBy('account_id')->orderBy('period_id')->get()->getResultArray();
         $this->assertSame(array_column($before, 'closing_balance'), array_column($after, 'closing_balance'));
         $this->assertCount(count($before), $after, 'B keeps all its balance rows');
 
