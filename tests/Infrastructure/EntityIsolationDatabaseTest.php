@@ -32,7 +32,6 @@ final class EntityIsolationDatabaseTest extends DbLedgerTestCase
     private array $otherIds = [];
 
     private int $otherEntryId;
-
     private int $otherYearId;
 
     protected function setUp(): void
