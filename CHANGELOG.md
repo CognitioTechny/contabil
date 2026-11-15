@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased (1.3.0)
+
+### Added
+
+- Analytic dimensions (cost centers) on entry lines: optional `dimensions` (type => identifier) in `Line`, `EntryData` and the `/entries` API, stored in the new `acc_entry_line_dimensions` table (schema 1.1.0, migration `CreateEntryLineDimensions`), kept by reversals and sealed in the hash only when present, so existing chains still verify.
+- `DimensionFilter` and the `dimension_type` / `dimension_id` parameters on `/reports/ledger`, `/reports/trial-balance` and `/reports/income-statement` (accrual and cash basis), with the filter echoed as `dimension` in the report.
+
 ## 1.1.0 - 2026-10-24
 
 ### Added

@@ -33,9 +33,10 @@ final class StatementBuilder
 
     /**
      * Revenue less expense over a period. Revenue and expense follow the basis;
-     * `null` takes the entity's default.
+     * `null` takes the entity's default. A dimension gives the statement of one
+     * cost center (or of every line tagged with the dimension type).
      */
-    public function incomeStatement(int $entityId, DateTimeImmutable $from, DateTimeImmutable $to, ?string $basis = null, bool $includeZero = false): Statement
+    public function incomeStatement(int $entityId, DateTimeImmutable $from, DateTimeImmutable $to, ?string $basis = null, bool $includeZero = false, ?DimensionFilter $dimension = null): Statement
     {
         $this->guard->assertExists($entityId);
 
@@ -45,7 +46,7 @@ final class StatementBuilder
 
         $resolved = Basis::resolve($basis, $this->entities->defaultBasis($entityId) ?? 'ACCRUAL');
         $tree     = new ChartTree($this->accounts->all($entityId));
-        $sums     = $this->movements->for($entityId, $from, $to, $resolved);
+        $sums     = $this->movements->for($entityId, $from, $to, $resolved, $dimension);
 
         $revenue  = $this->section($tree, AccountType::Revenue, $sums, $includeZero);
         $expenses = $this->section($tree, AccountType::Expense, $sums, $includeZero);
@@ -60,10 +61,11 @@ final class StatementBuilder
             [
                 'Period' => $from->format('Y-m-d') . ' to ' . $to->format('Y-m-d'),
                 'Basis'  => $resolved->value,
-            ],
+            ] + ($dimension === null ? [] : ['Dimension' => $dimension->label()]),
             ['revenue' => $revenue, 'expenses' => $expenses],
             ['revenue' => $totalRevenue, 'expenses' => $totalExpenses, 'net_result' => $totalRevenue - $totalExpenses],
-            ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'), 'basis' => $resolved->value],
+            ['from' => $from->format('Y-m-d'), 'to' => $to->format('Y-m-d'), 'basis' => $resolved->value]
+                + ($dimension === null ? [] : ['dimension' => $dimension->toArray()]),
         );
     }
 

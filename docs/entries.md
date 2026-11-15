@@ -43,6 +43,17 @@ php spark contabil:verify-integrity [--entity <id>]
 
 reports an edited entry or line, a deleted entry, a broken link, a gap in the numbering and an unbalanced entry, and exits non-zero. A chain proves **internal consistency**: someone with full database access who rewrites the last entry and recomputes its hash cannot be caught from the database alone. To close that gap, copy the latest `hash` from the `EntryPosted` event to storage the database user cannot write to.
 
+## Analytic dimensions (cost centers)
+
+Each line may carry `dimensions`, a map of dimension type to an opaque host
+identifier, such as `{"processo": "42", "cliente": "7"}`. Types are lowercase
+slugs (`[a-z][a-z0-9_]{0,49}`), identifiers are text up to 100 characters, and a
+line has at most 10. They are stored in `acc_entry_line_dimensions`, returned
+with each line, kept by a reversal, and sealed in the hash. A line without
+dimensions hashes exactly as before, so chains written by schema 1.0.0 still
+verify. Tag both lines of an entry when the Trial Balance of a cost center must
+balance. See [reports](reports.md#cost-centers-analytic-dimensions).
+
 ## Drafts
 
 `POST /entries` creates a draft (or posts straight away with `"post": true`). `PUT|PATCH /entries/{id}` replaces a draft's content, `DELETE /entries/{id}` removes it, `POST /entries/{id}/post` posts it. Closing a period or a year needs every draft dated in it posted or deleted first.

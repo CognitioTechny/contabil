@@ -12,6 +12,7 @@ Money columns are `BIGINT` in minor units. `user_id`, `source_type` and `source_
 | `acc_accounts` | Hierarchical chart; unique `(entity_id, code)`; `is_cash_account` marks cash and bank accounts. |
 | `acc_entries` | Journal entry header with `accrual_date`, `cash_date`, `idempotency_key`, `hash`, `previous_hash`. |
 | `acc_entry_lines` | Lines: `amount` > 0 plus `side` `D`/`C`; the General Ledger is a query over this table. |
+| `acc_entry_line_dimensions` | Analytic dimensions (cost centers) of a line: `dimension_type` + opaque `dimension_id`, unique per `(line_id, dimension_type)`; `entry_id` repeated for whole-entry loads. Schema 1.1.0. |
 | `acc_settlements` | Links a settlement entry to the entry it settles (partial settlements allowed). |
 | `acc_balances` | Account × period cache (opening, debits, credits, closing; debit positive); recomputable with `contabil:recalculate-balances`, never the source of truth. |
 | `acc_posting_rules` | Optional map from a host source event to a debit/credit account pair. |
@@ -24,6 +25,7 @@ Money columns are `BIGINT` in minor units. `user_id`, `source_type` and `source_
 
 - `acc_entries`: `(entity_id, accrual_date)`, `(entity_id, cash_date)`, `(source_type, source_id)`, UNIQUE `(entity_id, idempotency_key)`, UNIQUE `(entity_id, fiscal_year_id, number)`, UNIQUE `(entity_id, chain_position)`.
 - `acc_entry_lines`: `(account_id, entry_id)`, `(entry_id, position)`.
+- `acc_entry_line_dimensions`: unique `(line_id, dimension_type)`, `(dimension_type, dimension_id, line_id)`, `(entry_id)`.
 - `acc_accounts`: UNIQUE `(entity_id, code)`.
 
 ## CHECK constraints

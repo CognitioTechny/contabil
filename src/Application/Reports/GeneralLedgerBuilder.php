@@ -36,7 +36,7 @@ final class GeneralLedgerBuilder
     /**
      * @param string|null $cursor Value of `next_cursor` from the previous page.
      */
-    public function forAccount(int $entityId, int $accountId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?string $cursor = null, int $limit = 100): GeneralLedger
+    public function forAccount(int $entityId, int $accountId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?string $cursor = null, int $limit = 100, ?DimensionFilter $dimension = null): GeneralLedger
     {
         $this->entities->assertExists($entityId);
         $this->assertRange($from, $to);
@@ -49,12 +49,12 @@ final class GeneralLedgerBuilder
         $account = $tree->get($accountId) ?? throw new NotFoundException(sprintf('Account %d does not exist in this entity.', $accountId));
         $after   = $cursor === null ? null : self::decode($cursor);
 
-        [$section, $next] = $this->section($entityId, $account, $tree, $tree->leafIds($accountId), $from, $to, $after, $limit);
+        [$section, $next] = $this->section($entityId, $account, $tree, $tree->leafIds($accountId), $from, $to, $after, $limit, $dimension);
 
-        return new GeneralLedger($entityId, $from, $to, [$section], $next);
+        return new GeneralLedger($entityId, $from, $to, [$section], $next, $dimension);
     }
 
-    public function forRange(int $entityId, ?string $fromCode = null, ?string $toCode = null, ?DateTimeImmutable $from = null, ?DateTimeImmutable $to = null): GeneralLedger
+    public function forRange(int $entityId, ?string $fromCode = null, ?string $toCode = null, ?DateTimeImmutable $from = null, ?DateTimeImmutable $to = null, ?DimensionFilter $dimension = null): GeneralLedger
     {
         $this->entities->assertExists($entityId);
         $this->assertRange($from, $to);
@@ -74,7 +74,7 @@ final class GeneralLedgerBuilder
                 continue;
             }
 
-            [$section] = $this->section($entityId, $account, $tree, [(int) $account->id], $from, $to, null, self::RANGE_LIMIT + 1);
+            [$section] = $this->section($entityId, $account, $tree, [(int) $account->id], $from, $to, null, self::RANGE_LIMIT + 1, $dimension);
 
             if ($section['rows'] === [] && $section['opening'] === 0) {
                 continue;
@@ -89,7 +89,7 @@ final class GeneralLedgerBuilder
             $sections[] = $section;
         }
 
-        return new GeneralLedger($entityId, $from, $to, $sections, null);
+        return new GeneralLedger($entityId, $from, $to, $sections, null, $dimension);
     }
 
     /**
@@ -98,20 +98,20 @@ final class GeneralLedgerBuilder
      *
      * @return array{0: array<string, mixed>, 1: ?string}
      */
-    private function section(int $entityId, Account $account, ChartTree $tree, array $leafIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $after, int $limit): array
+    private function section(int $entityId, Account $account, ChartTree $tree, array $leafIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $after, int $limit, ?DimensionFilter $dimension = null): array
     {
         $sign = $account->nature === Nature::Debit ? 1 : -1;
 
-        [$od, $oc] = $from === null ? [0, 0] : $this->reader->sumsFor($entityId, $leafIds, null, $from->modify('-1 day'));
+        [$od, $oc] = $from === null ? [0, 0] : $this->reader->sumsFor($entityId, $leafIds, null, $from->modify('-1 day'), null, $dimension);
         $opening   = $sign * ($od - $oc);
         $balance   = $opening;
 
         if ($after !== null) {
-            [$d, $c] = $this->reader->sumsFor($entityId, $leafIds, $from, $to, $after);
+            [$d, $c] = $this->reader->sumsFor($entityId, $leafIds, $from, $to, $after, $dimension);
             $balance += $sign * ($d - $c);
         }
 
-        $lines = $leafIds === [] ? [] : $this->reader->ledgerLines($entityId, $leafIds, $from, $to, $after, $limit + 1);
+        $lines = $leafIds === [] ? [] : $this->reader->ledgerLines($entityId, $leafIds, $from, $to, $after, $limit + 1, $dimension);
         $more  = count($lines) > $limit;
         $lines = array_slice($lines, 0, $limit);
         $rows  = [];
@@ -131,7 +131,7 @@ final class GeneralLedgerBuilder
             ];
         }
 
-        [$td, $tc] = $leafIds === [] ? [0, 0] : $this->reader->sumsFor($entityId, $leafIds, $from, $to);
+        [$td, $tc] = $leafIds === [] ? [0, 0] : $this->reader->sumsFor($entityId, $leafIds, $from, $to, null, $dimension);
 
         return [[
             'account' => ['id' => $account->id, 'code' => $account->code, 'name' => $account->name, 'nature' => $account->nature->value],

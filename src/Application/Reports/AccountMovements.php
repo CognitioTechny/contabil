@@ -21,6 +21,8 @@ use DateTimeImmutable;
  *   less what earlier settlements recognized. The final settlement therefore
  *   carries the rounding residual and the full amount is always recognized.
  * - Settlements of reversed settlement entries are void; entries never settled count nowhere.
+ *
+ * A dimension keeps only the lines tagged with it, under either basis.
  */
 final class AccountMovements
 {
@@ -31,15 +33,15 @@ final class AccountMovements
     /**
      * @return array<int, array{0: int, 1: int}> Account id => [debits, credits].
      */
-    public function for(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, Basis $basis): array
+    public function for(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, Basis $basis, ?DimensionFilter $dimension = null): array
     {
         if ($basis === Basis::Accrual) {
-            return $this->reader->accrualSums($entityId, $from, $to);
+            return $this->reader->accrualSums($entityId, $from, $to, $dimension);
         }
 
-        $sums = $this->reader->directCashSums($entityId, $from, $to);
+        $sums = $this->reader->directCashSums($entityId, $from, $to, $dimension);
 
-        foreach ($this->settlementRecognition($entityId, $from, $to) as [$accountId, $side, $amount]) {
+        foreach ($this->settlementRecognition($entityId, $from, $to, $dimension) as [$accountId, $side, $amount]) {
             $sums[$accountId] ??= [0, 0];
             $sums[$accountId][$side === Side::Debit ? 0 : 1] += $amount;
         }
@@ -50,7 +52,7 @@ final class AccountMovements
     /**
      * @return list<array{0: int, 1: Side, 2: int}> Account id, side, amount recognized inside the range.
      */
-    private function settlementRecognition(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): array
+    private function settlementRecognition(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension): array
     {
         $byEntry = [];
 
@@ -62,7 +64,7 @@ final class AccountMovements
             return [];
         }
 
-        $profiles   = $this->reader->settledProfiles($entityId, array_keys($byEntry));
+        $profiles   = $this->reader->settledProfiles($entityId, array_keys($byEntry), $dimension);
         $recognized = [];
 
         foreach ($byEntry as $entryId => $settlements) {

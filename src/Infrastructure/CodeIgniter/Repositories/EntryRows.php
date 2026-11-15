@@ -57,6 +57,7 @@ final class EntryRows
             self::nullableString($row['line_description']),
             (int) $row['position'],
             (int) $row['id'],
+            is_array($row['dimensions'] ?? null) ? $row['dimensions'] : [],
         );
     }
 

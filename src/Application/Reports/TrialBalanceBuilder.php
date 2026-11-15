@@ -24,9 +24,10 @@ final class TrialBalanceBuilder
     }
 
     /**
-     * @param bool $includeZero Also list accounts with no balance and no movement.
+     * @param bool                 $includeZero Also list accounts with no balance and no movement.
+     * @param DimensionFilter|null $dimension   Only the lines of a cost center; the balance cache is then not checked.
      */
-    public function execute(int $entityId, DateTimeImmutable $from, DateTimeImmutable $to, bool $includeZero = false): TrialBalance
+    public function execute(int $entityId, DateTimeImmutable $from, DateTimeImmutable $to, bool $includeZero = false, ?DimensionFilter $dimension = null): TrialBalance
     {
         $this->entities->assertExists($entityId);
 
@@ -35,8 +36,8 @@ final class TrialBalanceBuilder
         }
 
         $tree     = new ChartTree($this->accounts->all($entityId));
-        $opening  = $this->reader->accrualSums($entityId, null, $from->modify('-1 day'));
-        $movement = $this->reader->accrualSums($entityId, $from, $to);
+        $opening  = $this->reader->accrualSums($entityId, null, $from->modify('-1 day'), $dimension);
+        $movement = $this->reader->accrualSums($entityId, $from, $to, $dimension);
 
         // Leaf figures first, then every group adds up its children.
         $figures = [];
@@ -102,7 +103,10 @@ final class TrialBalanceBuilder
             && $totals['opening_debit'] === $totals['opening_credit']
             && $totals['closing_debit'] === $totals['closing_credit'];
 
-        return new TrialBalance($entityId, $from, $to, $rows, $totals, $balanced, $this->divergences($entityId, $to, $tree, $opening, $movement));
+        // The balance cache holds whole accounts, so it cannot vouch for a cost center.
+        $divergences = $dimension === null ? $this->divergences($entityId, $to, $tree, $opening, $movement) : null;
+
+        return new TrialBalance($entityId, $from, $to, $rows, $totals, $balanced, $divergences, $dimension);
     }
 
     /**

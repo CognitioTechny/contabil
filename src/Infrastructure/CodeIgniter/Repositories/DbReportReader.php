@@ -7,6 +7,7 @@ namespace CognitioTechny\Contabil\Infrastructure\CodeIgniter\Repositories;
 use CodeIgniter\Database\BaseBuilder;
 use CodeIgniter\Database\BaseConnection;
 use CognitioTechny\Contabil\Application\Configuration\TableNames;
+use CognitioTechny\Contabil\Application\Reports\DimensionFilter;
 use CognitioTechny\Contabil\Application\Reports\LedgerLine;
 use CognitioTechny\Contabil\Application\Reports\ReportReaderInterface;
 use CognitioTechny\Contabil\Domain\Chart\AccountType;
@@ -28,9 +29,9 @@ final class DbReportReader implements ReportReaderInterface
     ) {
     }
 
-    public function accrualSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): array
+    public function accrualSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension = null): array
     {
-        $rows = $this->lineScope($entityId, $from, $to)
+        $rows = $this->lineScope($entityId, $from, $to, $dimension)
             ->select('l.account_id, l.side, SUM(l.amount) AS total')
             ->groupBy('l.account_id, l.side')
             ->get()
@@ -39,13 +40,13 @@ final class DbReportReader implements ReportReaderInterface
         return self::pairs($rows);
     }
 
-    public function ledgerLines(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $after, int $limit): array
+    public function ledgerLines(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $after, int $limit, ?DimensionFilter $dimension = null): array
     {
         if ($accountIds === []) {
             return [];
         }
 
-        $builder = $this->lineScope($entityId, $from, $to)
+        $builder = $this->lineScope($entityId, $from, $to, $dimension)
             ->select('l.id AS line_id, e.id AS entry_id, e.number, e.accrual_date, e.description, l.line_description, l.account_id, l.side, l.amount, e.source_type, e.source_id')
             ->whereIn('l.account_id', $accountIds);
 
@@ -76,13 +77,13 @@ final class DbReportReader implements ReportReaderInterface
         ), $rows);
     }
 
-    public function sumsFor(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $upTo = null): array
+    public function sumsFor(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $upTo = null, ?DimensionFilter $dimension = null): array
     {
         if ($accountIds === []) {
             return [0, 0];
         }
 
-        $builder = $this->lineScope($entityId, $from, $to)
+        $builder = $this->lineScope($entityId, $from, $to, $dimension)
             ->select('l.side, SUM(l.amount) AS total')
             ->whereIn('l.account_id', $accountIds);
 
@@ -144,7 +145,7 @@ final class DbReportReader implements ReportReaderInterface
             ->getResultArray());
     }
 
-    public function directCashSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): array
+    public function directCashSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension = null): array
     {
         $builder = $this->db->table($this->tables->name('entry_lines') . ' l')
             ->select('l.account_id, l.side, SUM(l.amount) AS total')
@@ -154,6 +155,8 @@ final class DbReportReader implements ReportReaderInterface
             ->whereIn('e.status', self::inLedger())
             ->where('e.cash_date IS NOT NULL')
             ->whereIn('a.type', self::resultTypes());
+
+        $this->filterDimension($builder, $dimension);
 
         if ($from !== null) {
             $builder->where('e.cash_date >=', $from->format('Y-m-d'));
@@ -191,14 +194,14 @@ final class DbReportReader implements ReportReaderInterface
         ), $rows);
     }
 
-    public function settledProfiles(int $entityId, array $entryIds): array
+    public function settledProfiles(int $entityId, array $entryIds, ?DimensionFilter $dimension = null): array
     {
         if ($entryIds === []) {
             return [];
         }
 
         $rows = $this->db->table($this->tables->name('entry_lines') . ' l')
-            ->select('l.entry_id, l.account_id, l.side, l.amount, a.type')
+            ->select('l.id, l.entry_id, l.account_id, l.side, l.amount, a.type')
             ->join($this->tables->name('entries') . ' e', 'e.id = l.entry_id')
             ->join($this->tables->name('accounts') . ' a', 'a.id = l.account_id')
             ->where('e.entity_id', $entityId)
@@ -207,6 +210,8 @@ final class DbReportReader implements ReportReaderInterface
             ->orderBy('l.position', 'ASC')
             ->get()
             ->getResultArray();
+
+        $tagged = $dimension === null ? null : array_flip($this->linesWithDimension($entityId, $entryIds, $dimension));
 
         $profiles = [];
 
@@ -220,7 +225,7 @@ final class DbReportReader implements ReportReaderInterface
                 $profiles[$id]['total'] += (int) $row['amount'];
             }
 
-            if (in_array((string) $row['type'], self::resultTypes(), true)) {
+            if (in_array((string) $row['type'], self::resultTypes(), true) && ($tagged === null || isset($tagged[(int) $row['id']]))) {
                 $profiles[$id]['lines'][] = [(int) $row['account_id'], $side, (int) $row['amount']];
             }
         }
@@ -231,12 +236,14 @@ final class DbReportReader implements ReportReaderInterface
     /**
      * Lines of ledger entries of the entity inside an accrual date range.
      */
-    private function lineScope(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): BaseBuilder
+    private function lineScope(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension = null): BaseBuilder
     {
         $builder = $this->db->table($this->tables->name('entry_lines') . ' l')
             ->join($this->tables->name('entries') . ' e', 'e.id = l.entry_id')
             ->where('e.entity_id', $entityId)
             ->whereIn('e.status', self::inLedger());
+
+        $this->filterDimension($builder, $dimension);
 
         if ($from !== null) {
             $builder->where('e.accrual_date >=', $from->format('Y-m-d'));
@@ -247,6 +254,52 @@ final class DbReportReader implements ReportReaderInterface
         }
 
         return $builder;
+    }
+
+    /**
+     * Keeps only lines (alias `l`) tagged with the dimension.
+     */
+    private function filterDimension(BaseBuilder $builder, ?DimensionFilter $dimension): void
+    {
+        if ($dimension === null) {
+            return;
+        }
+
+        // A raw subquery: a builder closure would make CodeIgniter re-prefix the outer aliases.
+        $sql = sprintf(
+            'l.id IN (SELECT line_id FROM %s WHERE dimension_type = %s',
+            $this->db->protectIdentifiers($this->db->prefixTable($this->tables->name('entry_line_dimensions')), false, false),
+            $this->db->escape($dimension->type),
+        );
+
+        if ($dimension->id !== null) {
+            $sql .= ' AND dimension_id = ' . $this->db->escape($dimension->id);
+        }
+
+        $builder->where($sql . ')', null, false);
+    }
+
+    /**
+     * Ids of the lines of the given entries tagged with the dimension.
+     *
+     * @param list<int> $entryIds
+     *
+     * @return list<int>
+     */
+    private function linesWithDimension(int $entityId, array $entryIds, DimensionFilter $dimension): array
+    {
+        $builder = $this->db->table($this->tables->name('entry_line_dimensions') . ' d')
+            ->select('d.line_id')
+            ->join($this->tables->name('entries') . ' e', 'e.id = d.entry_id')
+            ->where('e.entity_id', $entityId)
+            ->whereIn('d.entry_id', $entryIds)
+            ->where('d.dimension_type', $dimension->type);
+
+        if ($dimension->id !== null) {
+            $builder->where('d.dimension_id', $dimension->id);
+        }
+
+        return array_map(static fn (array $row): int => (int) $row['line_id'], $builder->get()->getResultArray());
     }
 
     /**
@@ -269,7 +322,22 @@ final class DbReportReader implements ReportReaderInterface
             ->get()
             ->getResultArray();
 
+        $dimensionsByLine = [];
+
+        if ($lineRows !== []) {
+            $dimensionRows = $this->db->table($this->tables->name('entry_line_dimensions'))
+                ->select('line_id, dimension_type, dimension_id')
+                ->whereIn('entry_id', array_map(static fn (array $row): int => (int) $row['id'], $entryRows))
+                ->get()
+                ->getResultArray();
+
+            foreach ($dimensionRows as $dimensionRow) {
+                $dimensionsByLine[(int) $dimensionRow['line_id']][(string) $dimensionRow['dimension_type']] = (string) $dimensionRow['dimension_id'];
+            }
+        }
+
         foreach ($lineRows as $lineRow) {
+            $lineRow['dimensions']                 = $dimensionsByLine[(int) $lineRow['id']] ?? [];
             $byEntry[(int) $lineRow['entry_id']][] = $lineRow;
         }
 

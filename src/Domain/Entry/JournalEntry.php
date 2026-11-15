@@ -377,7 +377,13 @@ final class JournalEntry
             $this->description,
             $this->sourceType,
             $this->sourceId,
-            array_map(static fn (Line $l): array => [$l->accountId, $l->side->value, $l->amount, $l->description], $this->lines),
+            array_map(
+                // Dimensions join the fingerprint only when present, so entries without them compare as before.
+                static fn (Line $l): array => $l->dimensions === []
+                    ? [$l->accountId, $l->side->value, $l->amount, $l->description]
+                    : [$l->accountId, $l->side->value, $l->amount, $l->description, $l->dimensions],
+                $this->lines,
+            ),
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 

@@ -23,6 +23,7 @@ final class GeneralLedger implements Report
         public readonly ?DateTimeImmutable $to,
         public readonly array $sections,
         public readonly ?string $nextCursor,
+        public readonly ?DimensionFilter $dimension = null,
     ) {
     }
 
@@ -41,7 +42,7 @@ final class GeneralLedger implements Report
         return [
             'Period'   => ($this->from?->format('Y-m-d') ?? 'beginning') . ' to ' . ($this->to?->format('Y-m-d') ?? 'end'),
             'Accounts' => (string) count($this->sections),
-        ];
+        ] + ($this->dimension === null ? [] : ['Dimension' => $this->dimension->label()]);
     }
 
     public function tableHeader(): array
@@ -80,6 +81,6 @@ final class GeneralLedger implements Report
             'to'          => $this->to?->format('Y-m-d'),
             'sections'    => $this->sections,
             'next_cursor' => $this->nextCursor,
-        ];
+        ] + ($this->dimension === null ? [] : ['dimension' => $this->dimension->toArray()]);
     }
 }

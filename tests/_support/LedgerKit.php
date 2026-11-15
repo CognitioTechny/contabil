@@ -195,14 +195,14 @@ final class LedgerKit
     }
 
     /**
-     * @param list<array{string, string, int}> $lines Account code, D or C, amount.
+     * @param list<array{0: string, 1: string, 2: int, 3?: array<string, string>}> $lines Account code, D or C, amount, optional dimensions.
      */
     public function entry(string $date, string $description, array $lines, ?string $cashDate = null, ?string $key = null, ?string $sourceType = null, ?string $sourceId = null): EntryData
     {
         return new EntryData(
             $date,
             $description,
-            array_map(fn (array $l): array => ['account_id' => $this->ids[$l[0]], 'side' => $l[1], 'amount' => $l[2]], $lines),
+            array_map(fn (array $l): array => ['account_id' => $this->ids[$l[0]], 'side' => $l[1], 'amount' => $l[2]] + (isset($l[3]) ? ['dimensions' => $l[3]] : []), $lines),
             $cashDate,
             $sourceType,
             $sourceId,

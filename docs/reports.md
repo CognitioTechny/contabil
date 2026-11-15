@@ -64,6 +64,25 @@ One account, paginated in ledger order (accrual date, entry, line) with a runnin
 
 `GET /reports/by-source?source_type=invoice&source_id=1042` lists every entry that carries that source, reversals included, in posting order.
 
+## Cost centers (analytic dimensions)
+
+The General Ledger, the Trial Balance and the Income Statement accept a
+dimension filter: `dimension_type` alone keeps every line tagged with that
+type; with `dimension_id` it keeps only the lines of one cost center. In PHP,
+pass a `DimensionFilter` as the last argument of `forAccount()`, `forRange()`,
+`execute()` or `incomeStatement()`.
+
+```http
+GET /api/v2/contabil/reports/income-statement?from=2026-03-01&to=2026-03-31&dimension_type=processo&dimension_id=42
+```
+
+- Under the cash basis, a settled entry recognizes only its tagged revenue and
+  expense lines, in the same proportion as the whole entry.
+- The Trial Balance of a cost center balances when both lines of each entry
+  carry the dimension. Its balance cache check is skipped (`divergences: null`),
+  because the cache holds whole accounts.
+- The report echoes the filter in `dimension`.
+
 ## Formats
 
 - `json` (default): `{"data": …}` with minor units.
