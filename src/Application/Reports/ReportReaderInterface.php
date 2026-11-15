@@ -15,7 +15,8 @@ use DateTimeImmutable;
  * writes, so the implementation may point at a read replica.
  *
  * A date range is inclusive on both ends and a null end is open. Sums are
- * `[debits, credits]` in minor units.
+ * `[debits, credits]` in minor units. A {@see DimensionFilter} keeps only the
+ * lines tagged with that analytic dimension.
  */
 interface ReportReaderInterface
 {
@@ -24,7 +25,7 @@ interface ReportReaderInterface
      *
      * @return array<int, array{0: int, 1: int}> Account id => [debits, credits]; only accounts with movement.
      */
-    public function accrualSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): array;
+    public function accrualSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension = null): array;
 
     /**
      * Lines of the given accounts in ledger order: accrual date, entry id, line id.
@@ -34,7 +35,7 @@ interface ReportReaderInterface
      *
      * @return list<LedgerLine>
      */
-    public function ledgerLines(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $after, int $limit): array;
+    public function ledgerLines(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $after, int $limit, ?DimensionFilter $dimension = null): array;
 
     /**
      * Totals of the given accounts together, over the accrual date, optionally
@@ -45,7 +46,7 @@ interface ReportReaderInterface
      *
      * @return array{0: int, 1: int}
      */
-    public function sumsFor(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $upTo = null): array;
+    public function sumsFor(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $upTo = null, ?DimensionFilter $dimension = null): array;
 
     /**
      * Entries with their lines by accrual date, then number.
@@ -67,7 +68,7 @@ interface ReportReaderInterface
      *
      * @return array<int, array{0: int, 1: int}>
      */
-    public function directCashSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): array;
+    public function directCashSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension = null): array;
 
     /**
      * Active settlements dated up to the end date, by date then id.
@@ -82,7 +83,10 @@ interface ReportReaderInterface
      *
      * @param list<int> $entryIds
      *
+     * With a dimension, `total` still covers the whole entry (it drives the
+     * settled proportion) while `lines` keeps only the lines of that dimension.
+     *
      * @return array<int, array{total: int, lines: list<array{0: int, 1: Side, 2: int}>}> Entry id => profile; lines are [account id, side, amount].
      */
-    public function settledProfiles(int $entityId, array $entryIds): array;
+    public function settledProfiles(int $entityId, array $entryIds, ?DimensionFilter $dimension = null): array;
 }

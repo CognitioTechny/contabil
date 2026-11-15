@@ -14,5 +14,5 @@ namespace CognitioTechny\Contabil\Infrastructure\CodeIgniter\Database;
  */
 final class SchemaVersion
 {
-    public const CURRENT = '1.0.0';
+    public const CURRENT = '1.1.0';
 }

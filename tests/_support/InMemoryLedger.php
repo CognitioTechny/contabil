@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use CognitioTechny\Contabil\Application\Reports\DimensionFilter;
 use CognitioTechny\Contabil\Application\Reports\LedgerLine;
 use CognitioTechny\Contabil\Application\Reports\ReportReaderInterface;
 use CognitioTechny\Contabil\Application\Repository\TransactionRunnerInterface;
@@ -103,7 +104,7 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
     public function insert(JournalEntry $draft): JournalEntry
     {
         $id    = $this->nextId++;
-        $lines = array_map(static fn (Line $l): Line => new Line($l->accountId, $l->side, $l->amount, $l->description, $l->position, $id * 1000 + $l->position), $draft->lines);
+        $lines = array_map(static fn (Line $l): Line => new Line($l->accountId, $l->side, $l->amount, $l->description, $l->position, $id * 1000 + $l->position, $l->dimensions), $draft->lines);
 
         return $this->entries[$id] = $draft->withId($id)->withLines($lines);
     }
@@ -229,11 +230,11 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
 
     // --- ReportReaderInterface ----------------------------------------
 
-    public function accrualSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): array
+    public function accrualSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension = null): array
     {
         $sums = [];
 
-        foreach ($this->ledgerRows($entityId, $from, $to) as $line) {
+        foreach ($this->ledgerRows($entityId, $from, $to, $dimension) as $line) {
             $sums[$line->accountId] ??= [0, 0];
             $sums[$line->accountId][$line->side === Side::Debit ? 0 : 1] += $line->amount;
         }
@@ -241,21 +242,21 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
         return $sums;
     }
 
-    public function ledgerLines(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $after, int $limit): array
+    public function ledgerLines(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $after, int $limit, ?DimensionFilter $dimension = null): array
     {
         $rows = array_filter(
-            $this->ledgerRows($entityId, $from, $to),
+            $this->ledgerRows($entityId, $from, $to, $dimension),
             static fn (LedgerLine $l): bool => in_array($l->accountId, $accountIds, true) && ($after === null || $l->cursor() > $after),
         );
 
         return array_slice(array_values($rows), 0, $limit);
     }
 
-    public function sumsFor(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $upTo = null): array
+    public function sumsFor(int $entityId, array $accountIds, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?array $upTo = null, ?DimensionFilter $dimension = null): array
     {
         $sums = [0, 0];
 
-        foreach ($this->ledgerRows($entityId, $from, $to) as $line) {
+        foreach ($this->ledgerRows($entityId, $from, $to, $dimension) as $line) {
             if (in_array($line->accountId, $accountIds, true) && ($upTo === null || $line->cursor() <= $upTo)) {
                 $sums[$line->side === Side::Debit ? 0 : 1] += $line->amount;
             }
@@ -287,7 +288,7 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
         return $found;
     }
 
-    public function directCashSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): array
+    public function directCashSums(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension = null): array
     {
         $sums = [];
 
@@ -298,7 +299,7 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
             }
 
             foreach ($entry->lines as $line) {
-                if ($this->isResultAccount($entityId, $line->accountId)) {
+                if ($this->isResultAccount($entityId, $line->accountId) && self::tagged($line, $dimension)) {
                     $sums[$line->accountId] ??= [0, 0];
                     $sums[$line->accountId][$line->side === Side::Debit ? 0 : 1] += $line->amount;
                 }
@@ -319,7 +320,7 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
         return $found;
     }
 
-    public function settledProfiles(int $entityId, array $entryIds): array
+    public function settledProfiles(int $entityId, array $entryIds, ?DimensionFilter $dimension = null): array
     {
         $profiles = [];
 
@@ -333,7 +334,7 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
             $profiles[$id] = ['total' => $entry->totalDebits(), 'lines' => []];
 
             foreach ($entry->lines as $line) {
-                if ($this->isResultAccount($entityId, $line->accountId)) {
+                if ($this->isResultAccount($entityId, $line->accountId) && self::tagged($line, $dimension)) {
                     $profiles[$id]['lines'][] = [$line->accountId, $line->side, $line->amount];
                 }
             }
@@ -360,7 +361,7 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
     /**
      * @return list<LedgerLine> In ledger order.
      */
-    private function ledgerRows(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to): array
+    private function ledgerRows(int $entityId, ?DateTimeImmutable $from, ?DateTimeImmutable $to, ?DimensionFilter $dimension = null): array
     {
         $rows = [];
 
@@ -371,6 +372,10 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
             }
 
             foreach ($entry->lines as $line) {
+                if (! self::tagged($line, $dimension)) {
+                    continue;
+                }
+
                 $rows[] = new LedgerLine(
                     (int) $line->id,
                     (int) $entry->id,
@@ -390,6 +395,11 @@ final class InMemoryLedger implements EntryRepositoryInterface, BalanceRepositor
         usort($rows, static fn (LedgerLine $a, LedgerLine $b): int => $a->cursor() <=> $b->cursor());
 
         return $rows;
+    }
+
+    private static function tagged(Line $line, ?DimensionFilter $dimension): bool
+    {
+        return $dimension === null || $line->hasDimension($dimension->type, $dimension->id);
     }
 
     private function isResultAccount(int $entityId, int $accountId): bool

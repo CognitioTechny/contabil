@@ -14,7 +14,7 @@ final class TableNames
 {
     public const LOGICAL = [
         'entities', 'fiscal_years', 'periods', 'accounts', 'entries', 'entry_lines',
-        'settlements', 'balances', 'posting_rules', 'sequences', 'schema_version',
+        'settlements', 'balances', 'posting_rules', 'sequences', 'schema_version', 'entry_line_dimensions',
     ];
 
     public function __construct(public readonly string $prefix)

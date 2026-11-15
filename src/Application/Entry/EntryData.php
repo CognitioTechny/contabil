@@ -17,7 +17,7 @@ use CognitioTechny\Contabil\Domain\Exception\ValidationException;
 final class EntryData
 {
     /**
-     * @param list<array<string, mixed>> $lines Each with account_id, side (D/C), amount, optional description.
+     * @param list<array<string, mixed>> $lines Each with account_id, side (D/C), amount, optional description and optional dimensions (type => identifier).
      */
     public function __construct(
         public readonly string $accrualDate,
@@ -107,7 +107,13 @@ final class EntryData
             }
 
             try {
-                $lines[] = new Line((int) $account, Side::fromInput($row['side'] ?? null), $amount, $description === '' ? null : $description, $number);
+                $dimensions = $row['dimensions'] ?? [];
+
+                if (! is_array($dimensions)) {
+                    throw new ValidationException('dimensions must be an object of type => identifier.');
+                }
+
+                $lines[] = new Line((int) $account, Side::fromInput($row['side'] ?? null), $amount, $description === '' ? null : $description, $number, null, $dimensions);
             } catch (ValidationException $e) {
                 throw new ValidationException(sprintf('Line %d: %s', $number, $e->getMessage()), 0, $e);
             }

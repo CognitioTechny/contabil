@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace CognitioTechny\Contabil\Infrastructure\CodeIgniter\Controllers;
 
 use CodeIgniter\HTTP\ResponseInterface;
+use CognitioTechny\Contabil\Application\Reports\DimensionFilter;
 use CognitioTechny\Contabil\Application\Reports\Report;
 use CognitioTechny\Contabil\Application\Support\DateInput;
 use CognitioTechny\Contabil\Domain\Exception\ValidationException;
@@ -15,6 +16,9 @@ use DateTimeImmutable;
  * (`?format=csv|pdf`) also need `contabil.reports.export`. JSON is the default.
  *
  * Reports only read, so they are safe to point at a read replica.
+ *
+ * The general ledger, the trial balance and the income statement accept
+ * `dimension_type` (and optionally `dimension_id`) to report one cost center.
  */
 class ReportsController extends ApiController
 {
@@ -30,9 +34,9 @@ class ReportsController extends ApiController
             $account = $this->param('account_id');
 
             if ($account !== null) {
-                $report = $builder->forAccount($entity, (int) $account, $from, $to, $this->param('cursor'), (int) ($this->param('limit') ?? 100));
+                $report = $builder->forAccount($entity, (int) $account, $from, $to, $this->param('cursor'), (int) ($this->param('limit') ?? 100), $this->dimension());
             } else {
-                $report = $builder->forRange($entity, $this->param('from_code'), $this->param('to_code'), $from, $to);
+                $report = $builder->forRange($entity, $this->param('from_code'), $this->param('to_code'), $from, $to, $this->dimension());
             }
 
             return $this->deliver($report, $entity);
@@ -50,7 +54,7 @@ class ReportsController extends ApiController
     public function trialBalance(): ResponseInterface
     {
         return $this->handle(self::VIEW, fn (int $entity): array|ResponseInterface => $this->deliver(
-            $this->useCases()->trialBalance()->execute($entity, $this->requiredDate('from'), $this->requiredDate('to'), $this->flag('include_zero')),
+            $this->useCases()->trialBalance()->execute($entity, $this->requiredDate('from'), $this->requiredDate('to'), $this->flag('include_zero'), $this->dimension()),
             $entity,
         ));
     }
@@ -58,7 +62,7 @@ class ReportsController extends ApiController
     public function incomeStatement(): ResponseInterface
     {
         return $this->handle(self::VIEW, fn (int $entity): array|ResponseInterface => $this->deliver(
-            $this->useCases()->statements()->incomeStatement($entity, $this->requiredDate('from'), $this->requiredDate('to'), $this->param('basis'), $this->flag('include_zero')),
+            $this->useCases()->statements()->incomeStatement($entity, $this->requiredDate('from'), $this->requiredDate('to'), $this->param('basis'), $this->flag('include_zero'), $this->dimension()),
             $entity,
         ));
     }
@@ -127,6 +131,11 @@ class ReportsController extends ApiController
     private function flag(string $name): bool
     {
         return in_array(strtolower((string) $this->request->getGet($name)), ['1', 'true', 'yes'], true);
+    }
+
+    private function dimension(): ?DimensionFilter
+    {
+        return DimensionFilter::fromInput($this->param('dimension_type'), $this->param('dimension_id'));
     }
 
     private function date(string $name): ?DateTimeImmutable

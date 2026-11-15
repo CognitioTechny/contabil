@@ -26,6 +26,7 @@ final class TrialBalance implements Report
         public readonly array $totals,
         public readonly bool $balanced,
         public readonly ?array $divergences,
+        public readonly ?DimensionFilter $dimension = null,
     ) {
     }
 
@@ -45,7 +46,7 @@ final class TrialBalance implements Report
             'Period'   => $this->from->format('Y-m-d') . ' to ' . $this->to->format('Y-m-d'),
             'Balanced' => $this->balanced ? 'yes' : 'NO',
             'Cache'    => $this->divergences === null ? 'not checked' : ($this->divergences === [] ? 'consistent' : count($this->divergences) . ' divergent accounts'),
-        ];
+        ] + ($this->dimension === null ? [] : ['Dimension' => $this->dimension->label()]);
     }
 
     public function tableHeader(): array
@@ -88,7 +89,7 @@ final class TrialBalance implements Report
             'divergences' => $this->divergences,
             'totals'      => $this->totals,
             'rows'        => $this->rows,
-        ];
+        ] + ($this->dimension === null ? [] : ['dimension' => $this->dimension->toArray()]);
     }
 
     private static function debit(int $signed): string

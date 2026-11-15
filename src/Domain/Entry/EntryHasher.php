@@ -6,7 +6,7 @@ namespace CognitioTechny\Contabil\Domain\Entry;
 
 /**
  * Seals an entry in the per-entity hash chain. The hash covers everything that
- * never changes after posting plus the previous hash, so editing any posted
+ * never changes after posting (analytic dimensions included) plus the previous hash, so editing any posted
  * row, or removing one, breaks the chain. The status is left out on purpose:
  * `POSTED` becomes `REVERSED` without touching the content.
  */
@@ -46,7 +46,11 @@ final class EntryHasher
             $entry->userId,
             $entry->previousHash,
             array_map(
-                static fn (Line $line): array => [$line->position, $line->accountId, $line->side->value, $line->amount, $line->description],
+                // Dimensions are sealed too, but only when present: lines without
+                // them hash exactly as in schema 1.0.0, so existing chains still verify.
+                static fn (Line $line): array => $line->dimensions === []
+                    ? [$line->position, $line->accountId, $line->side->value, $line->amount, $line->description]
+                    : [$line->position, $line->accountId, $line->side->value, $line->amount, $line->description, $line->dimensions],
                 $entry->lines,
             ),
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

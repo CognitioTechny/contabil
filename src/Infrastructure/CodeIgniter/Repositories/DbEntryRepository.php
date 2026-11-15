@@ -115,6 +115,7 @@ final class DbEntryRepository implements EntryRepositoryInterface
 
         $draftRow()->update($header);
 
+        $this->dimensions()->where('entry_id', $draft->id)->delete();
         $this->lines()->where('entry_id', $draft->id)->delete();
         $this->insertLines((int) $draft->id, $draft->lines);
 
@@ -129,6 +130,7 @@ final class DbEntryRepository implements EntryRepositoryInterface
             throw new ConflictException('Only a draft can be deleted.');
         }
 
+        $this->dimensions()->where('entry_id', $id)->delete();
         $this->lines()->where('entry_id', $id)->delete();
         $this->entries()->where('id', $id)->where('status', EntryStatus::Draft->value)->delete();
     }
@@ -322,7 +324,22 @@ final class DbEntryRepository implements EntryRepositoryInterface
             ->get()
             ->getResultArray();
 
+        $dimensionsByLine = [];
+
+        if ($lineRows !== []) {
+            $dimensionRows = $this->dimensions()
+                ->select('line_id, dimension_type, dimension_id')
+                ->whereIn('entry_id', array_map(static fn (array $row): int => (int) $row['id'], $rows))
+                ->get()
+                ->getResultArray();
+
+            foreach ($dimensionRows as $dimensionRow) {
+                $dimensionsByLine[(int) $dimensionRow['line_id']][(string) $dimensionRow['dimension_type']] = (string) $dimensionRow['dimension_id'];
+            }
+        }
+
         foreach ($lineRows as $lineRow) {
+            $lineRow['dimensions']                 = $dimensionsByLine[(int) $lineRow['id']] ?? [];
             $byEntry[(int) $lineRow['entry_id']][] = $lineRow;
         }
 
@@ -342,6 +359,34 @@ final class DbEntryRepository implements EntryRepositoryInterface
             'line_description' => $line->description,
             'position'         => $line->position,
         ], $lines));
+
+        $withDimensions = array_filter($lines, static fn (Line $line): bool => $line->dimensions !== []);
+
+        if ($withDimensions === []) {
+            return;
+        }
+
+        // Positions are unique inside an entry: map them back to the new line ids.
+        $idsByPosition = array_column(
+            $this->lines()->select('id, position')->where('entry_id', $entryId)->get()->getResultArray(),
+            'id',
+            'position',
+        );
+
+        $rows = [];
+
+        foreach ($withDimensions as $line) {
+            foreach ($line->dimensions as $type => $dimensionId) {
+                $rows[] = [
+                    'entry_id'       => $entryId,
+                    'line_id'        => (int) $idsByPosition[$line->position],
+                    'dimension_type' => $type,
+                    'dimension_id'   => $dimensionId,
+                ];
+            }
+        }
+
+        $this->dimensions()->insertBatch($rows);
     }
 
     private function entries(): BaseBuilder
@@ -352,5 +397,10 @@ final class DbEntryRepository implements EntryRepositoryInterface
     private function lines(): BaseBuilder
     {
         return $this->db->table($this->tables->name('entry_lines'));
+    }
+
+    private function dimensions(): BaseBuilder
+    {
+        return $this->db->table($this->tables->name('entry_line_dimensions'));
     }
 }
